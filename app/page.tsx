@@ -1,3 +1,4 @@
+import CardDeleteButton from "@/components/card-delete-button";
 import FilterBar, { type FilterState } from "@/components/filter-bar";
 import { listReviews } from "@/lib/db";
 import type { ReviewWithWork } from "@/lib/types";
@@ -104,10 +105,11 @@ export default async function Home({
           <p className="mb-4 text-sm text-zinc-500">共 {filtered.length} 条</p>
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {filtered.map((r) => (
-              <li key={r.reviewId}>
+              <li key={r.reviewId} className="group relative">
+                <CardDeleteButton reviewId={r.reviewId} title={r.work.title} />
                 <Link
                   href={`/work/${r.work.id}`}
-                  className="group block overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 transition hover:border-zinc-400 dark:hover:border-zinc-500"
+                  className="group/link block overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 transition hover:border-zinc-400 dark:hover:border-zinc-500"
                 >
                   <div className="relative aspect-[2/3] w-full bg-zinc-100 dark:bg-zinc-800">
                     {r.work.coverUrl ? (
@@ -133,7 +135,7 @@ export default async function Home({
                     )}
                   </div>
                   <div className="p-3">
-                    <p className="truncate text-sm font-medium group-hover:underline">
+                    <p className="truncate text-sm font-medium group-hover/link:underline">
                       {r.work.title}
                     </p>
                     <p className="mt-1 text-xs text-zinc-500">
