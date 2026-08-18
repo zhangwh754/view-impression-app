@@ -1,5 +1,7 @@
+import AuthButton from "@/components/auth-button";
 import CardDeleteButton from "@/components/card-delete-button";
 import FilterBar, { type FilterState } from "@/components/filter-bar";
+import { isOwner as checkIsOwner } from "@/auth";
 import { listReviews } from "@/lib/db";
 import type { ReviewWithWork } from "@/lib/types";
 import { MEDIA_TYPE_LABELS, REVIEW_STATUS_LABELS } from "@/lib/types";
@@ -42,6 +44,7 @@ export default async function Home({
   };
 
   const reviews = await listReviews();
+  const owner = await checkIsOwner();
 
   // 大类型先行过滤；小类型、年份的可选项都基于当前大类型下的数据
   const byType = current.type
@@ -77,12 +80,17 @@ export default async function Home({
     <main className="mx-auto w-full max-w-5xl px-4 py-10">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">我的观后感</h1>
-        <Link
-          href="/add"
-          className="rounded-lg bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-sm font-medium text-white dark:text-zinc-900"
-        >
-          + 添加
-        </Link>
+        <div className="flex items-center gap-4">
+          <AuthButton />
+          {owner && (
+            <Link
+              href="/add"
+              className="rounded-lg bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-sm font-medium text-white dark:text-zinc-900"
+            >
+              + 添加
+            </Link>
+          )}
+        </div>
       </div>
 
       {reviews.length > 0 && (
@@ -106,7 +114,9 @@ export default async function Home({
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {filtered.map((r) => (
               <li key={r.reviewId} className="group relative">
-                <CardDeleteButton reviewId={r.reviewId} title={r.work.title} />
+                {owner && (
+                  <CardDeleteButton reviewId={r.reviewId} title={r.work.title} />
+                )}
                 <Link
                   href={`/work/${r.work.id}`}
                   className="group/link block overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 transition hover:border-zinc-400 dark:hover:border-zinc-500"

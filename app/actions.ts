@@ -1,5 +1,6 @@
 "use server";
 
+import { auth } from "@/auth";
 import { getBangumiDetail } from "@/lib/bangumi";
 import {
   createReview,
@@ -11,6 +12,14 @@ import { getTmdbDetail } from "@/lib/tmdb";
 import type { ReviewStatus, Source } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+
+/** 所有写操作仅主人可用；Server Action 可被直接 POST 调用，必须服务端校验。 */
+async function requireOwner() {
+  const session = await auth();
+  if (session?.user?.email !== process.env.OWNER_EMAIL) {
+    throw new Error("Unauthorized");
+  }
+}
 
 function parseRating(raw: FormDataEntryValue | null): number | null {
   const n = Number(raw);
@@ -37,6 +46,7 @@ function parseWatchedAt(raw: FormDataEntryValue | null): string | null {
 
 /** Fetch full detail from the source, store the work, then attach the review. */
 export async function saveReview(formData: FormData) {
+  await requireOwner();
   const source = formData.get("source") as Source;
   const sourceId = String(formData.get("sourceId") ?? "");
   if ((source !== "tmdb" && source !== "bangumi") || !sourceId) {
@@ -62,6 +72,7 @@ export async function saveReview(formData: FormData) {
 }
 
 export async function updateReview(formData: FormData) {
+  await requireOwner();
   const reviewId = Number(formData.get("reviewId"));
   const workId = Number(formData.get("workId"));
   if (!Number.isInteger(reviewId) || reviewId <= 0) {
@@ -85,6 +96,7 @@ export async function updateReview(formData: FormData) {
 }
 
 export async function deleteReview(formData: FormData) {
+  await requireOwner();
   const reviewId = Number(formData.get("reviewId"));
   if (!Number.isInteger(reviewId) || reviewId <= 0) {
     throw new Error("Invalid review id");

@@ -1,4 +1,5 @@
 import { updateReview } from "@/app/actions";
+import { isOwner } from "@/auth";
 import DeleteReviewButton from "@/components/delete-review-button";
 import ReviewFields from "@/components/review-fields";
 import { getReviewByWorkId } from "@/lib/db";
@@ -21,6 +22,7 @@ export default async function WorkPage({
   const review = await getReviewByWorkId(workId);
   if (!review) notFound();
 
+  const owner = await isOwner();
   const { work } = review;
 
   return (
@@ -143,25 +145,46 @@ export default async function WorkPage({
             {review.myRating !== null ? ` · ★ ${review.myRating}` : ""}
           </span>
         </h2>
-        <form action={updateReview} className="space-y-6">
-          <input type="hidden" name="reviewId" value={review.reviewId} />
-          <input type="hidden" name="workId" value={work.id} />
-          <ReviewFields
-            defaultStatus={review.status}
-            defaultRating={review.myRating}
-            defaultComment={review.comment}
-            defaultWatchedAt={review.watchedAt}
-          />
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              className="rounded-lg bg-zinc-900 dark:bg-zinc-100 px-5 py-2 text-sm font-medium text-white dark:text-zinc-900"
-            >
-              保存修改
-            </button>
-            <DeleteReviewButton reviewId={review.reviewId} />
-          </div>
-        </form>
+        {owner ? (
+          <form action={updateReview} className="space-y-6">
+            <input type="hidden" name="reviewId" value={review.reviewId} />
+            <input type="hidden" name="workId" value={work.id} />
+            <ReviewFields
+              defaultStatus={review.status}
+              defaultRating={review.myRating}
+              defaultComment={review.comment}
+              defaultWatchedAt={review.watchedAt}
+            />
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                className="rounded-lg bg-zinc-900 dark:bg-zinc-100 px-5 py-2 text-sm font-medium text-white dark:text-zinc-900"
+              >
+                保存修改
+              </button>
+              <DeleteReviewButton reviewId={review.reviewId} />
+            </div>
+          </form>
+        ) : (
+          <dl className="space-y-3 text-sm">
+            <div className="flex gap-2">
+              <dt className="w-20 shrink-0 text-zinc-500">我的评分</dt>
+              <dd>{review.myRating !== null ? `${review.myRating} / 10` : "未评分"}</dd>
+            </div>
+            {review.watchedAt && (
+              <div className="flex gap-2">
+                <dt className="w-20 shrink-0 text-zinc-500">观看时间</dt>
+                <dd>{review.watchedAt}</dd>
+              </div>
+            )}
+            {review.comment && (
+              <div className="flex gap-2">
+                <dt className="w-20 shrink-0 text-zinc-500">评论</dt>
+                <dd className="whitespace-pre-wrap leading-6">{review.comment}</dd>
+              </div>
+            )}
+          </dl>
+        )}
       </section>
     </main>
   );
