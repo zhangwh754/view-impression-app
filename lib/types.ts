@@ -5,7 +5,7 @@ export type MediaType = "movie" | "tv" | "anime";
 export const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
   movie: "电影",
   tv: "电视剧",
-  anime: "动漫",
+  anime: "番剧",
 };
 
 export interface CastMember {
