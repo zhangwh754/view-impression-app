@@ -14,7 +14,8 @@ import { redirect } from "next/navigation";
 
 function parseRating(raw: FormDataEntryValue | null): number | null {
   const n = Number(raw);
-  return Number.isFinite(n) && n >= 0 && n <= 10 ? n : null;
+  // 10 分制，仅整数
+  return Number.isInteger(n) && n >= 1 && n <= 10 ? n : null;
 }
 
 function parseStatus(raw: FormDataEntryValue | null): ReviewStatus {

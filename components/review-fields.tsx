@@ -1,8 +1,12 @@
+import DateField from "@/components/date-field";
 import type { ReviewStatus } from "@/lib/types";
 import { REVIEW_STATUS_LABELS } from "@/lib/types";
 
 const inputClass =
   "w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400";
+
+const pillClass =
+  "inline-block rounded-full border border-zinc-300 dark:border-zinc-700 px-4 py-1.5 text-sm transition peer-checked:bg-zinc-900 peer-checked:text-white dark:peer-checked:bg-zinc-100 dark:peer-checked:text-zinc-900 peer-checked:border-transparent";
 
 export default function ReviewFields({
   defaultStatus = "completed",
@@ -29,42 +33,43 @@ export default function ReviewFields({
                 defaultChecked={s === defaultStatus}
                 className="peer sr-only"
               />
-              <span className="inline-block rounded-full border border-zinc-300 dark:border-zinc-700 px-4 py-1.5 text-sm peer-checked:bg-zinc-900 peer-checked:text-white dark:peer-checked:bg-zinc-100 dark:peer-checked:text-zinc-900 peer-checked:border-transparent">
-                {REVIEW_STATUS_LABELS[s]}
-              </span>
+              <span className={pillClass}>{REVIEW_STATUS_LABELS[s]}</span>
             </label>
           ))}
         </div>
       </div>
 
       <div>
-        <label htmlFor="myRating" className="mb-2 block text-sm font-medium">
-          我的评分（0–10）
-        </label>
-        <input
-          id="myRating"
-          name="myRating"
-          type="number"
-          min="0"
-          max="10"
-          step="0.5"
-          placeholder="8.5"
-          defaultValue={defaultRating ?? ""}
-          className={inputClass}
-        />
+        <span className="mb-2 block text-sm font-medium">我的评分</span>
+        <div className="flex flex-wrap gap-2">
+          <label className="cursor-pointer">
+            <input
+              type="radio"
+              name="myRating"
+              value=""
+              defaultChecked={defaultRating == null}
+              className="peer sr-only"
+            />
+            <span className={pillClass}>不评分</span>
+          </label>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+            <label key={n} className="cursor-pointer">
+              <input
+                type="radio"
+                name="myRating"
+                value={n}
+                defaultChecked={defaultRating === n}
+                className="peer sr-only"
+              />
+              <span className={pillClass}>{n}</span>
+            </label>
+          ))}
+        </div>
       </div>
 
       <div>
-        <label htmlFor="watchedAt" className="mb-2 block text-sm font-medium">
-          观看日期
-        </label>
-        <input
-          id="watchedAt"
-          name="watchedAt"
-          type="date"
-          defaultValue={defaultWatchedAt ?? ""}
-          className={inputClass}
-        />
+        <span className="mb-2 block text-sm font-medium">观看日期</span>
+        <DateField defaultValue={defaultWatchedAt} />
       </div>
 
       <div>

@@ -28,6 +28,13 @@ export default function SearchAndReview() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [selected, setSelected] = useState<WorkSummary | null>(null);
+  // 新记录默认观看日期为今天（仅在挂载时计算一次，避免水合差异）
+  const [today] = useState(() => {
+    const d = new Date();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${m}-${day}`;
+  });
 
   async function runSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -161,7 +168,7 @@ export default function SearchAndReview() {
           <form action={saveReview} className="space-y-6">
             <input type="hidden" name="source" value={selected.source} />
             <input type="hidden" name="sourceId" value={selected.sourceId} />
-            <ReviewFields />
+            <ReviewFields defaultWatchedAt={today} />
             <SaveButton />
           </form>
         </div>
