@@ -29,6 +29,12 @@ function parseText(raw: FormDataEntryValue | null): string | null {
   return s || null;
 }
 
+/** 观看时间：仅接受 "2026" 或 "2026-08" 格式。 */
+function parseWatchedAt(raw: FormDataEntryValue | null): string | null {
+  const s = typeof raw === "string" ? raw.trim() : "";
+  return /^\d{4}(-(0[1-9]|1[0-2]))?$/.test(s) ? s : null;
+}
+
 /** Fetch full detail from the source, store the work, then attach the review. */
 export async function saveReview(formData: FormData) {
   const source = formData.get("source") as Source;
@@ -48,7 +54,7 @@ export async function saveReview(formData: FormData) {
     status: parseStatus(formData.get("status")),
     myRating: parseRating(formData.get("myRating")),
     comment: parseText(formData.get("comment")),
-    watchedAt: parseText(formData.get("watchedAt")),
+    watchedAt: parseWatchedAt(formData.get("watchedAt")),
   });
 
   revalidatePath("/");
@@ -67,7 +73,7 @@ export async function updateReview(formData: FormData) {
     status: parseStatus(formData.get("status")),
     myRating: parseRating(formData.get("myRating")),
     comment: parseText(formData.get("comment")),
-    watchedAt: parseText(formData.get("watchedAt")),
+    watchedAt: parseWatchedAt(formData.get("watchedAt")),
   });
 
   revalidatePath("/");

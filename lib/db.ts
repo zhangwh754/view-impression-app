@@ -51,11 +51,22 @@ export function ensureSchema(): Promise<void> {
         status VARCHAR(20) NOT NULL DEFAULT 'completed',
         my_rating REAL,
         comment TEXT,
-        watched_at DATE,
+        watched_at TEXT,
         created_at TIMESTAMPTZ DEFAULT now(),
         updated_at TIMESTAMPTZ DEFAULT now()
       )
     `;
+    // watched_at 原为 DATE（精确到日），现只需 年/年-月，存量数据截断为 YYYY-MM
+    const { rows: colRows } = await sql`
+      SELECT data_type FROM information_schema.columns
+      WHERE table_name = 'reviews' AND column_name = 'watched_at'
+    `;
+    if (colRows[0]?.data_type === "date") {
+      await sql`
+        ALTER TABLE reviews
+        ALTER COLUMN watched_at TYPE TEXT USING left(watched_at::text, 7)
+      `;
+    }
   })();
   return schemaReady;
 }
@@ -168,7 +179,7 @@ function toReviewWithWork(row: ReviewRow): ReviewWithWork {
     status: row.status,
     myRating: row.my_rating,
     comment: row.comment,
-    watchedAt: row.watched_at ? String(row.watched_at).slice(0, 10) : null,
+    watchedAt: row.watched_at ? String(row.watched_at) : null,
     updatedAt: String(row.updated_at),
     work: {
       id: row.work_id,

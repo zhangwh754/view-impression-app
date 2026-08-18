@@ -1,4 +1,4 @@
-import DateField from "@/components/date-field";
+import WatchedDateField from "@/components/watched-date-field";
 import type { ReviewStatus } from "@/lib/types";
 import { REVIEW_STATUS_LABELS } from "@/lib/types";
 
@@ -68,8 +68,8 @@ export default function ReviewFields({
       </div>
 
       <div>
-        <span className="mb-2 block text-sm font-medium">观看日期</span>
-        <DateField defaultValue={defaultWatchedAt} />
+        <span className="mb-2 block text-sm font-medium">观看时间</span>
+        <WatchedDateField defaultValue={defaultWatchedAt} />
       </div>
 
       <div>
