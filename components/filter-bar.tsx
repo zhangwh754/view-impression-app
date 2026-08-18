@@ -61,7 +61,9 @@ function Row({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="w-14 shrink-0 text-sm text-zinc-500">{label}</span>
+      <span className="w-full shrink-0 text-sm text-zinc-500 sm:w-14">
+        {label}
+      </span>
       {children}
     </div>
   );

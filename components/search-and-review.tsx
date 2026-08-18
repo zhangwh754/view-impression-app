@@ -127,8 +127,8 @@ export default function SearchAndReview() {
 
       {selected && (
         <div className="space-y-6">
-          <div className="flex gap-4 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
-            <div className="relative h-40 w-28 shrink-0 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
+          <div className="flex flex-col gap-4 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 sm:flex-row">
+            <div className="relative mx-auto h-40 w-28 shrink-0 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800 sm:mx-0">
               {selected.coverUrl ? (
                 <Image
                   src={selected.coverUrl}

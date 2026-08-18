@@ -30,7 +30,7 @@ export default async function WorkPage({
       </Link>
 
       <div className="mt-6 flex flex-col gap-6 sm:flex-row">
-        <div className="relative aspect-[2/3] w-full max-w-56 shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
+        <div className="relative mx-auto aspect-[2/3] w-full max-w-56 shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800 sm:mx-0">
           {work.coverUrl ? (
             <Image
               src={work.coverUrl}
