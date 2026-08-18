@@ -63,11 +63,19 @@ export async function searchTmdb(query: string): Promise<WorkSummary[]> {
       externalRating: round1(r.vote_average),
       episodes: null,
       synopsis: r.overview || null,
+      genres: [],
+      cast: [],
     }));
 }
 
 interface TmdbCredits {
   crew?: { job: string; name: string }[];
+  cast?: { id: number; name: string; character?: string; order?: number }[];
+}
+
+interface TmdbGenre {
+  id: number;
+  name: string;
 }
 
 interface TmdbMovieDetail {
@@ -78,6 +86,7 @@ interface TmdbMovieDetail {
   release_date?: string;
   vote_average?: number;
   overview?: string;
+  genres?: TmdbGenre[];
   credits?: TmdbCredits;
 }
 
@@ -91,6 +100,7 @@ interface TmdbTvDetail {
   overview?: string;
   number_of_episodes?: number;
   created_by?: { name: string }[];
+  genres?: TmdbGenre[];
   credits?: TmdbCredits;
 }
 
@@ -132,5 +142,15 @@ export async function getTmdbDetail(sourceId: string): Promise<WorkSummary> {
     externalRating: round1(data.vote_average),
     episodes: mediaType === "tv" ? (data.number_of_episodes ?? null) : null,
     synopsis: data.overview || null,
+    genres: (data.genres ?? []).map((g) => g.name),
+    cast: (data.credits?.cast ?? [])
+      .slice()
+      .sort((a, b) => (a.order ?? 99) - (b.order ?? 99))
+      .slice(0, 8)
+      .map((c) => ({
+        name: c.name,
+        character: c.character || null,
+        url: `https://www.themoviedb.org/person/${c.id}`,
+      })),
   };
 }

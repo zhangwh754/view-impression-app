@@ -8,6 +8,14 @@ export const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
   anime: "动漫",
 };
 
+export interface CastMember {
+  name: string;
+  /** 饰演角色（真人）/ 配音角色（声优） */
+  character: string | null;
+  /** 人物详情页链接（Bangumi / TMDB） */
+  url: string | null;
+}
+
 /** Normalized shape returned by both TMDB and Bangumi clients. */
 export interface WorkSummary {
   source: Source;
@@ -23,6 +31,10 @@ export interface WorkSummary {
   externalRating: number | null;
   episodes: number | null;
   synopsis: string | null;
+  /** 类型标签，如 ["剧情", "恐怖"] */
+  genres: string[];
+  /** 主演（真人影视）/ 声优（动漫） */
+  cast: CastMember[];
 }
 
 export type ReviewStatus = "plan" | "watching" | "completed";
@@ -51,5 +63,7 @@ export interface ReviewWithWork {
     externalRating: number | null;
     episodes: number | null;
     synopsis: string | null;
+    genres: string[];
+    cast: CastMember[];
   };
 }

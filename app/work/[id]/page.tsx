@@ -51,6 +51,18 @@ export default async function WorkPage({
           {work.originalTitle && work.originalTitle !== work.title && (
             <p className="mt-1 text-sm text-zinc-500">{work.originalTitle}</p>
           )}
+          {work.genres.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {work.genres.map((g) => (
+                <span
+                  key={g}
+                  className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-xs text-zinc-600 dark:text-zinc-300"
+                >
+                  {g}
+                </span>
+              ))}
+            </div>
+          )}
           <dl className="mt-4 space-y-1.5 text-sm">
             <div className="flex gap-2">
               <dt className="w-16 shrink-0 text-zinc-500">类型</dt>
@@ -87,6 +99,38 @@ export default async function WorkPage({
             <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
               {work.synopsis}
             </p>
+          )}
+          {work.cast.length > 0 && (
+            <div className="mt-4">
+              <p className="text-sm text-zinc-500">
+                {work.type === "anime" ? "声优" : "主演"}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {work.cast.map((c) => {
+                  const label = c.character
+                    ? `${c.name}（${c.character}）`
+                    : c.name;
+                  return c.url ? (
+                    <a
+                      key={`${c.name}-${c.character}`}
+                      href={c.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs transition hover:border-zinc-400 hover:underline"
+                    >
+                      {label}
+                    </a>
+                  ) : (
+                    <span
+                      key={`${c.name}-${c.character}`}
+                      className="rounded-full border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs"
+                    >
+                      {label}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
       </div>

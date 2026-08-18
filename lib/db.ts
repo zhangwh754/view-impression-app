@@ -2,6 +2,7 @@ import { neonConfig } from "@neondatabase/serverless";
 import { sql } from "@vercel/postgres";
 import { proxyEnabled } from "./proxy";
 import type {
+  CastMember,
   MediaType,
   ReviewStatus,
   ReviewWithWork,
@@ -34,10 +35,15 @@ export function ensureSchema(): Promise<void> {
         external_rating REAL,
         episodes INTEGER,
         synopsis TEXT,
+        genres TEXT,
+        cast_members TEXT,
         created_at TIMESTAMPTZ DEFAULT now(),
         UNIQUE (source, source_id)
       )
     `;
+    // 已存在的库补充新列（幂等）
+    await sql`ALTER TABLE works ADD COLUMN IF NOT EXISTS genres TEXT`;
+    await sql`ALTER TABLE works ADD COLUMN IF NOT EXISTS cast_members TEXT`;
     await sql`
       CREATE TABLE IF NOT EXISTS reviews (
         id SERIAL PRIMARY KEY,
@@ -60,11 +66,12 @@ export async function upsertWork(work: WorkSummary): Promise<number> {
   const { rows } = await sql`
     INSERT INTO works (
       source, source_id, title, original_title, type, cover_url,
-      creator, year, external_rating, episodes, synopsis
+      creator, year, external_rating, episodes, synopsis, genres, cast_members
     ) VALUES (
       ${work.source}, ${work.sourceId}, ${work.title}, ${work.originalTitle},
       ${work.type}, ${work.coverUrl}, ${work.creator}, ${work.year},
-      ${work.externalRating}, ${work.episodes}, ${work.synopsis}
+      ${work.externalRating}, ${work.episodes}, ${work.synopsis},
+      ${JSON.stringify(work.genres)}, ${JSON.stringify(work.cast)}
     )
     ON CONFLICT (source, source_id) DO UPDATE SET
       title = EXCLUDED.title,
@@ -73,7 +80,9 @@ export async function upsertWork(work: WorkSummary): Promise<number> {
       creator = EXCLUDED.creator,
       external_rating = EXCLUDED.external_rating,
       episodes = EXCLUDED.episodes,
-      synopsis = EXCLUDED.synopsis
+      synopsis = EXCLUDED.synopsis,
+      genres = EXCLUDED.genres,
+      cast_members = EXCLUDED.cast_members
     RETURNING id
   `;
   return rows[0].id as number;
@@ -139,6 +148,18 @@ interface ReviewRow {
   external_rating: number | null;
   episodes: number | null;
   synopsis: string | null;
+  genres: string | null;
+  cast_members: string | null;
+}
+
+function parseJsonArray<T>(raw: string | null): T[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function toReviewWithWork(row: ReviewRow): ReviewWithWork {
@@ -160,6 +181,8 @@ function toReviewWithWork(row: ReviewRow): ReviewWithWork {
       externalRating: row.external_rating,
       episodes: row.episodes,
       synopsis: row.synopsis,
+      genres: parseJsonArray<string>(row.genres),
+      cast: parseJsonArray<CastMember>(row.cast_members),
     },
   };
 }
@@ -168,7 +191,7 @@ const REVIEW_SELECT = `
   SELECT r.id AS review_id, r.status, r.my_rating, r.comment, r.watched_at,
          r.updated_at, w.id AS work_id, w.title, w.original_title, w.type,
          w.cover_url, w.creator, w.year, w.external_rating, w.episodes,
-         w.synopsis
+         w.synopsis, w.genres, w.cast_members
   FROM reviews r
   JOIN works w ON w.id = r.work_id
 `;

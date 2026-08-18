@@ -1,5 +1,5 @@
 import "./proxy";
-import type { WorkSummary } from "./types";
+import type { CastMember, WorkSummary } from "./types";
 
 const BGM_BASE = "https://api.bgm.tv";
 
@@ -44,6 +44,16 @@ interface BgmSubject {
   eps?: number;
   total_episodes?: number;
   infobox?: BgmInfoboxEntry[];
+  /** 官方整理的标签（比 tags 用户标签更干净） */
+  meta_tags?: string[];
+  tags?: { name: string; count?: number }[];
+}
+
+interface BgmCharacter {
+  id: number;
+  name: string;
+  relation?: string; // "主角" | "配角" | "客串"
+  actors?: { id: number; name: string }[];
 }
 
 function mediaType(bgmType: number): "anime" | "tv" {
@@ -104,16 +114,64 @@ export async function searchBangumi(query: string): Promise<WorkSummary[]> {
       item.score && item.score > 0 ? Math.round(item.score * 10) / 10 : null,
     episodes: null,
     synopsis: item.summary || null,
+    genres: [],
+    cast: [],
   }));
 }
 
+/** 主角/配角的声优，最多 8 位；角色接口失败时降级为空数组。 */
+async function getBangumiCast(sourceId: string): Promise<CastMember[]> {
+  try {
+    const res = await fetch(`${BGM_BASE}/v0/subjects/${sourceId}/characters`, {
+      headers: HEADERS,
+      next: { revalidate: 86400 },
+    });
+    if (!res.ok) return [];
+    const characters = (await res.json()) as BgmCharacter[];
+
+    const order = (c: BgmCharacter) =>
+      c.relation === "主角" ? 0 : c.relation === "配角" ? 1 : 2;
+    return characters
+      .slice()
+      .sort((a, b) => order(a) - order(b))
+      .flatMap((c) =>
+        (c.actors ?? []).slice(0, 1).map((a) => ({
+          name: a.name,
+          character: c.name,
+          url: `https://bgm.tv/person/${a.id}`,
+        })),
+      )
+      .slice(0, 8);
+  } catch {
+    return [];
+  }
+}
+
+// meta_tags 里混入的地区/媒介噪声，过滤后更接近"类型"语义
+const GENRE_NOISE = new Set(["TV", "日本", "中国", "欧美", "韩国", "美国"]);
+
+function pickGenres(s: BgmSubject): string[] {
+  const raw =
+    s.meta_tags && s.meta_tags.length > 0
+      ? s.meta_tags
+      : (s.tags ?? [])
+          .slice()
+          .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+          .map((t) => t.name);
+  return raw.filter((t) => !GENRE_NOISE.has(t)).slice(0, 6);
+}
+
 export async function getBangumiDetail(sourceId: string): Promise<WorkSummary> {
-  const res = await fetch(`${BGM_BASE}/v0/subjects/${sourceId}`, {
-    headers: HEADERS,
-    next: { revalidate: 86400 },
-  });
-  if (!res.ok) throw new Error(`Bangumi detail failed: ${res.status}`);
-  const s = (await res.json()) as BgmSubject;
+  const [subjectRes, cast] = await Promise.all([
+    fetch(`${BGM_BASE}/v0/subjects/${sourceId}`, {
+      headers: HEADERS,
+      next: { revalidate: 86400 },
+    }),
+    getBangumiCast(sourceId),
+  ]);
+  if (!subjectRes.ok)
+    throw new Error(`Bangumi detail failed: ${subjectRes.status}`);
+  const s = (await subjectRes.json()) as BgmSubject;
 
   return {
     source: "bangumi",
@@ -130,5 +188,7 @@ export async function getBangumiDetail(sourceId: string): Promise<WorkSummary> {
         : null,
     episodes: s.eps || s.total_episodes || null,
     synopsis: s.summary || null,
+    genres: pickGenres(s),
+    cast,
   };
 }
