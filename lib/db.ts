@@ -1,10 +1,19 @@
+import { neonConfig } from "@neondatabase/serverless";
 import { sql } from "@vercel/postgres";
+import { proxyEnabled } from "./proxy";
 import type {
   MediaType,
   ReviewStatus,
   ReviewWithWork,
   WorkSummary,
 } from "./types";
+
+// Neon pool queries use WebSockets by default, which bypass the proxy set in
+// lib/proxy.ts. With a proxy configured, run queries over fetch (HTTP) so
+// they go through the global dispatcher like everything else.
+if (proxyEnabled) {
+  neonConfig.poolQueryViaFetch = true;
+}
 
 // Tables are created lazily on first use so the app works on a fresh database.
 let schemaReady: Promise<void> | null = null;

@@ -1,12 +1,18 @@
+import "./proxy";
 import type { WorkSummary } from "./types";
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const TMDB_IMAGE = "https://image.tmdb.org/t/p/w500";
 
-function apiKey(): string {
+// TMDB issues two credentials: a v3 API key (sent as ?api_key=) and a v4
+// Read Access Token (a JWT starting with "eyJ", sent as a Bearer header).
+// Support both transparently — people often paste the v4 token.
+function tmdbAuth(url: URL): Record<string, string> {
   const key = process.env.TMDB_API_KEY;
   if (!key) throw new Error("Missing TMDB_API_KEY env var");
-  return key;
+  if (key.startsWith("eyJ")) return { Authorization: `Bearer ${key}` };
+  url.searchParams.set("api_key", key);
+  return {};
 }
 
 function cover(posterPath: string | null): string | null {
@@ -33,12 +39,12 @@ interface TmdbMultiResult {
 
 export async function searchTmdb(query: string): Promise<WorkSummary[]> {
   const url = new URL(`${TMDB_BASE}/search/multi`);
-  url.searchParams.set("api_key", apiKey());
+  const headers = tmdbAuth(url);
   url.searchParams.set("language", "zh-CN");
   url.searchParams.set("query", query);
   url.searchParams.set("include_adult", "false");
 
-  const res = await fetch(url, { next: { revalidate: 300 } });
+  const res = await fetch(url, { headers, next: { revalidate: 300 } });
   if (!res.ok) throw new Error(`TMDB search failed: ${res.status}`);
   const data = (await res.json()) as { results?: TmdbMultiResult[] };
 
@@ -96,11 +102,11 @@ export async function getTmdbDetail(sourceId: string): Promise<WorkSummary> {
   }
 
   const url = new URL(`${TMDB_BASE}/${mediaType}/${id}`);
-  url.searchParams.set("api_key", apiKey());
+  const headers = tmdbAuth(url);
   url.searchParams.set("language", "zh-CN");
   url.searchParams.set("append_to_response", "credits");
 
-  const res = await fetch(url, { next: { revalidate: 86400 } });
+  const res = await fetch(url, { headers, next: { revalidate: 86400 } });
   if (!res.ok) throw new Error(`TMDB detail failed: ${res.status}`);
   const data = (await res.json()) as TmdbMovieDetail & TmdbTvDetail;
 

@@ -1,10 +1,12 @@
+import "./proxy";
 import type { WorkSummary } from "./types";
 
 const BGM_BASE = "https://api.bgm.tv";
 
-// Bangumi requires a descriptive User-Agent.
+// Bangumi requires a User-Agent in the documented format:
+// {developer_id}/{app_name}[/{version}] — generic UAs are blocked.
 const HEADERS = {
-  "User-Agent": "view-impression-app/0.1 (personal watch-log project)",
+  "User-Agent": "zhangwh754/view-impression-app/0.1",
   "Content-Type": "application/json",
 };
 
