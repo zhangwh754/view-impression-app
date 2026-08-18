@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { isOwner } from "@/auth";
 import { getBangumiDetail } from "@/lib/bangumi";
 import {
   createReview,
@@ -15,8 +15,7 @@ import { redirect } from "next/navigation";
 
 /** 所有写操作仅主人可用；Server Action 可被直接 POST 调用，必须服务端校验。 */
 async function requireOwner() {
-  const session = await auth();
-  if (session?.user?.email !== process.env.OWNER_EMAIL) {
+  if (!(await isOwner())) {
     throw new Error("Unauthorized");
   }
 }

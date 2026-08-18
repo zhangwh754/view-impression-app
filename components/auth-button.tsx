@@ -1,11 +1,9 @@
 import { loginWithGoogle, logout } from "@/app/auth-actions";
-import { auth } from "@/auth";
+import { auth, isOwner } from "@/auth";
 
 export default async function AuthButton() {
-  const session = await auth();
-  const isOwner = session?.user?.email === process.env.OWNER_EMAIL;
-
-  if (isOwner) {
+  if (await isOwner()) {
+    const session = await auth();
     return (
       <form action={logout}>
         <button
