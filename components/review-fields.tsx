@@ -1,6 +1,6 @@
 import WatchedDateField from "@/components/watched-date-field";
-import type { ReviewStatus } from "@/lib/types";
-import { REVIEW_STATUS_LABELS } from "@/lib/types";
+import type { ReviewStatus } from "@/modules/reviews/domain";
+import { REVIEW_STATUS_LABELS } from "@/modules/reviews/domain";
 
 const inputClass =
   "w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400";

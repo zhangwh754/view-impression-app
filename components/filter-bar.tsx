@@ -1,5 +1,5 @@
-import type { MediaType } from "@/lib/types";
-import { MEDIA_TYPE_LABELS } from "@/lib/types";
+import type { MediaType } from "@/modules/catalog/domain";
+import { MEDIA_TYPE_LABELS } from "@/modules/catalog/domain";
 import Link from "next/link";
 
 export interface FilterState {

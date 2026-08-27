@@ -2,8 +2,8 @@
 
 import { saveReview } from "@/app/actions";
 import ReviewFields from "@/components/review-fields";
-import type { WorkSummary } from "@/lib/types";
-import { MEDIA_TYPE_LABELS } from "@/lib/types";
+import type { CatalogWork } from "@/modules/catalog/domain";
+import { MEDIA_TYPE_LABELS } from "@/modules/catalog/domain";
 import Image from "next/image";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -23,11 +23,11 @@ function SaveButton() {
 
 export default function SearchAndReview() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<WorkSummary[]>([]);
+  const [results, setResults] = useState<CatalogWork[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [selected, setSelected] = useState<WorkSummary | null>(null);
+  const [selected, setSelected] = useState<CatalogWork | null>(null);
   // 新记录默认观看日期为今天（仅在挂载时计算一次，避免水合差异）
   const [today] = useState(() => {
     const d = new Date();

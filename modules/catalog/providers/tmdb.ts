@@ -1,12 +1,13 @@
-import "./proxy";
-import type { WorkSummary } from "./types";
+import "server-only";
+
+import "@/infrastructure/http/proxy";
+import type { CatalogProvider, CatalogWork } from "@/modules/catalog/domain";
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const TMDB_IMAGE = "https://image.tmdb.org/t/p/w500";
 
 // TMDB issues two credentials: a v3 API key (sent as ?api_key=) and a v4
 // Read Access Token (a JWT starting with "eyJ", sent as a Bearer header).
-// Support both transparently — people often paste the v4 token.
 function tmdbAuth(url: URL): Record<string, string> {
   const key = process.env.TMDB_API_KEY;
   if (!key) throw new Error("Missing TMDB_API_KEY env var");
@@ -37,7 +38,7 @@ interface TmdbMultiResult {
   overview?: string;
 }
 
-export async function searchTmdb(query: string): Promise<WorkSummary[]> {
+async function search(query: string): Promise<CatalogWork[]> {
   const url = new URL(`${TMDB_BASE}/search/multi`);
   const headers = tmdbAuth(url);
   url.searchParams.set("language", "zh-CN");
@@ -49,20 +50,24 @@ export async function searchTmdb(query: string): Promise<WorkSummary[]> {
   const data = (await res.json()) as { results?: TmdbMultiResult[] };
 
   return (data.results ?? [])
-    .filter((r) => r.media_type === "movie" || r.media_type === "tv")
+    .filter((result) =>
+      result.media_type === "movie" || result.media_type === "tv",
+    )
     .slice(0, 8)
-    .map((r) => ({
+    .map((result) => ({
       source: "tmdb" as const,
-      sourceId: `${r.media_type}-${r.id}`,
-      title: r.title ?? r.name ?? "",
-      originalTitle: r.original_title ?? r.original_name ?? null,
-      type: r.media_type === "movie" ? ("movie" as const) : ("tv" as const),
-      coverUrl: cover(r.poster_path),
+      sourceId: `${result.media_type}-${result.id}`,
+      title: result.title ?? result.name ?? "",
+      originalTitle: result.original_title ?? result.original_name ?? null,
+      type: result.media_type === "movie" ? ("movie" as const) : ("tv" as const),
+      coverUrl: cover(result.poster_path),
       creator: null,
-      year: (r.release_date ?? r.first_air_date ?? "").slice(0, 4) || null,
-      externalRating: round1(r.vote_average),
+      year:
+        (result.release_date ?? result.first_air_date ?? "").slice(0, 4) ||
+        null,
+      externalRating: round1(result.vote_average),
       episodes: null,
-      synopsis: r.overview || null,
+      synopsis: result.overview || null,
       genres: [],
       cast: [],
     }));
@@ -104,8 +109,8 @@ interface TmdbTvDetail {
   credits?: TmdbCredits;
 }
 
-/** sourceId has the form "movie-123" or "tv-456". */
-export async function getTmdbDetail(sourceId: string): Promise<WorkSummary> {
+/** sourceId 的格式为 "movie-123" 或 "tv-456"。 */
+async function getDetail(sourceId: string): Promise<CatalogWork> {
   const [mediaType, id] = sourceId.split("-");
   if ((mediaType !== "movie" && mediaType !== "tv") || !id) {
     throw new Error(`Invalid TMDB sourceId: ${sourceId}`);
@@ -121,12 +126,13 @@ export async function getTmdbDetail(sourceId: string): Promise<WorkSummary> {
   const data = (await res.json()) as TmdbMovieDetail & TmdbTvDetail;
 
   const directors =
-    data.credits?.crew?.filter((c) => c.job === "Director").map((c) => c.name) ??
-    [];
+    data.credits?.crew
+      ?.filter((member) => member.job === "Director")
+      .map((member) => member.name) ?? [];
   const creator =
     mediaType === "movie"
       ? directors.join("、") || null
-      : data.created_by?.map((c) => c.name).join("、") ||
+      : data.created_by?.map((member) => member.name).join("、") ||
         directors.join("、") ||
         null;
 
@@ -142,15 +148,22 @@ export async function getTmdbDetail(sourceId: string): Promise<WorkSummary> {
     externalRating: round1(data.vote_average),
     episodes: mediaType === "tv" ? (data.number_of_episodes ?? null) : null,
     synopsis: data.overview || null,
-    genres: (data.genres ?? []).map((g) => g.name),
+    genres: (data.genres ?? []).map((genre) => genre.name),
     cast: (data.credits?.cast ?? [])
       .slice()
       .sort((a, b) => (a.order ?? 99) - (b.order ?? 99))
       .slice(0, 8)
-      .map((c) => ({
-        name: c.name,
-        character: c.character || null,
-        url: `https://www.themoviedb.org/person/${c.id}`,
+      .map((member) => ({
+        name: member.name,
+        character: member.character || null,
+        url: `https://www.themoviedb.org/person/${member.id}`,
       })),
   };
 }
+
+export const tmdbProvider: CatalogProvider = {
+  source: "tmdb",
+  displayName: "TMDB",
+  search,
+  getDetail,
+};

@@ -1,15 +1,13 @@
 "use server";
 
 import { isOwner } from "@/auth";
-import { getBangumiDetail } from "@/lib/bangumi";
+import type { CatalogSource } from "@/modules/catalog/domain";
+import type { ReviewStatus } from "@/modules/reviews/domain";
 import {
-  createReview,
-  deleteReview as dbDeleteReview,
-  updateReview as dbUpdateReview,
-  upsertWork,
-} from "@/lib/db";
-import { getTmdbDetail } from "@/lib/tmdb";
-import type { ReviewStatus, Source } from "@/lib/types";
+  createReviewFromCatalog,
+  deleteReview as deleteReviewUseCase,
+  updateReview as updateReviewUseCase,
+} from "@/modules/reviews/service";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -46,24 +44,21 @@ function parseWatchedAt(raw: FormDataEntryValue | null): string | null {
 /** Fetch full detail from the source, store the work, then attach the review. */
 export async function saveReview(formData: FormData) {
   await requireOwner();
-  const source = formData.get("source") as Source;
+  const source = formData.get("source") as CatalogSource;
   const sourceId = String(formData.get("sourceId") ?? "");
   if ((source !== "tmdb" && source !== "bangumi") || !sourceId) {
     throw new Error("Invalid work selection");
   }
 
-  const detail =
-    source === "tmdb"
-      ? await getTmdbDetail(sourceId)
-      : await getBangumiDetail(sourceId);
-
-  const workId = await upsertWork(detail);
-  await createReview({
-    workId,
-    status: parseStatus(formData.get("status")),
-    myRating: parseRating(formData.get("myRating")),
-    comment: parseText(formData.get("comment")),
-    watchedAt: parseWatchedAt(formData.get("watchedAt")),
+  await createReviewFromCatalog({
+    source,
+    sourceId,
+    review: {
+      status: parseStatus(formData.get("status")),
+      myRating: parseRating(formData.get("myRating")),
+      comment: parseText(formData.get("comment")),
+      watchedAt: parseWatchedAt(formData.get("watchedAt")),
+    },
   });
 
   revalidatePath("/");
@@ -78,8 +73,7 @@ export async function updateReview(formData: FormData) {
     throw new Error("Invalid review id");
   }
 
-  await dbUpdateReview({
-    reviewId,
+  await updateReviewUseCase(reviewId, {
     status: parseStatus(formData.get("status")),
     myRating: parseRating(formData.get("myRating")),
     comment: parseText(formData.get("comment")),
@@ -101,7 +95,7 @@ export async function deleteReview(formData: FormData) {
     throw new Error("Invalid review id");
   }
 
-  await dbDeleteReview(reviewId);
+  await deleteReviewUseCase(reviewId);
   revalidatePath("/");
   redirect("/");
 }

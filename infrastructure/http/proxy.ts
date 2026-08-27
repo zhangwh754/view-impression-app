@@ -1,9 +1,9 @@
+import "server-only";
+
 import { ProxyAgent, setGlobalDispatcher } from "undici";
 
-// Node's global fetch ignores the OS/browser proxy. When HTTPS_PROXY (or
-// HTTP_PROXY) is set — e.g. a local Clash Verge on 7897 — route all
-// server-side fetch calls through it. Import this module for its side effect
-// before any code that calls fetch.
+// Node 的 fetch 不会自动读取系统代理。配置代理时，让所有服务端 HTTP
+// 请求（外部目录与 Neon HTTP 查询）共用同一 dispatcher。
 const proxyUrl =
   process.env.HTTPS_PROXY ??
   process.env.https_proxy ??

@@ -2,9 +2,10 @@ import AuthButton from "@/components/auth-button";
 import CardDeleteButton from "@/components/card-delete-button";
 import FilterBar, { type FilterState } from "@/components/filter-bar";
 import { isOwner as checkIsOwner } from "@/auth";
-import { listReviews } from "@/lib/db";
-import type { ReviewWithWork } from "@/lib/types";
-import { MEDIA_TYPE_LABELS, REVIEW_STATUS_LABELS } from "@/lib/types";
+import { MEDIA_TYPE_LABELS } from "@/modules/catalog/domain";
+import type { ReviewWithWork } from "@/modules/reviews/domain";
+import { REVIEW_STATUS_LABELS } from "@/modules/reviews/domain";
+import { listReviews } from "@/modules/reviews/service";
 import Image from "next/image";
 import Link from "next/link";
 
