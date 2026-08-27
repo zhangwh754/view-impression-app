@@ -11,6 +11,8 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 15;
+
 function matchRating(r: ReviewWithWork, bucket: string): boolean {
   const n = r.myRating;
   switch (bucket) {
@@ -31,6 +33,21 @@ function pick(param: string | string[] | undefined): string {
   return typeof param === "string" ? param : "";
 }
 
+function parsePage(param: string): number {
+  const page = Number(param);
+  return Number.isSafeInteger(page) && page > 0 ? page : 1;
+}
+
+function pageHref(current: FilterState, page: number): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(current)) {
+    if (value) params.set(key, value);
+  }
+  if (page > 1) params.set("page", String(page));
+  const query = params.toString();
+  return query ? `/?${query}` : "/";
+}
+
 export default async function Home({
   searchParams,
 }: {
@@ -43,6 +60,7 @@ export default async function Home({
     rating: pick(sp.rating),
     year: pick(sp.year),
   };
+  const requestedPage = parsePage(pick(sp.page));
 
   const reviews = await listReviews();
   const owner = await checkIsOwner();
@@ -75,6 +93,12 @@ export default async function Home({
       (!current.genre || r.work.genres.includes(current.genre)) &&
       matchRating(r, current.rating) &&
       (!current.year || r.watchedAt?.startsWith(current.year)),
+  );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(requestedPage, totalPages);
+  const pageReviews = filtered.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
   );
 
   return (
@@ -111,9 +135,12 @@ export default async function Home({
         </div>
       ) : (
         <>
-          <p className="mb-4 text-sm text-zinc-500">共 {filtered.length} 条</p>
+          <p className="mb-4 text-sm text-zinc-500">
+            共 {filtered.length} 条
+            {totalPages > 1 ? ` · 第 ${currentPage} / ${totalPages} 页` : ""}
+          </p>
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {filtered.map((r) => (
+            {pageReviews.map((r) => (
               <li key={r.reviewId} className="group relative">
                 {owner && (
                   <CardDeleteButton reviewId={r.reviewId} title={r.work.title} />
@@ -161,6 +188,40 @@ export default async function Home({
               </li>
             ))}
           </ul>
+          {totalPages > 1 && (
+            <nav
+              aria-label="首页分页"
+              className="mt-8 flex items-center justify-center gap-3"
+            >
+              {currentPage > 1 ? (
+                <Link
+                  href={pageHref(current, currentPage - 1)}
+                  className="rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm transition hover:border-zinc-500"
+                >
+                  上一页
+                </Link>
+              ) : (
+                <span className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm text-zinc-400">
+                  上一页
+                </span>
+              )}
+              <span className="text-sm text-zinc-500">
+                {currentPage} / {totalPages}
+              </span>
+              {currentPage < totalPages ? (
+                <Link
+                  href={pageHref(current, currentPage + 1)}
+                  className="rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm transition hover:border-zinc-500"
+                >
+                  下一页
+                </Link>
+              ) : (
+                <span className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm text-zinc-400">
+                  下一页
+                </span>
+              )}
+            </nav>
+          )}
         </>
       )}
     </main>
