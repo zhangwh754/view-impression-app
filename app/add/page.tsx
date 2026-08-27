@@ -1,6 +1,7 @@
 import { loginWithGoogle } from "@/app/auth-actions";
 import { isOwner } from "@/auth";
 import SearchAndReview from "@/components/search-and-review";
+import { listReviewedWorks } from "@/modules/reviews/service";
 import Link from "next/link";
 
 export const metadata = { title: "添加观后感" };
@@ -32,6 +33,8 @@ export default async function AddPage() {
     );
   }
 
+  const existingWorks = await listReviewedWorks();
+
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10">
       <div className="mb-8 flex items-center justify-between">
@@ -40,7 +43,7 @@ export default async function AddPage() {
           返回首页
         </Link>
       </div>
-      <SearchAndReview />
+      <SearchAndReview existingWorks={existingWorks} />
     </main>
   );
 }

@@ -1,12 +1,23 @@
 "use client";
 
-import { saveReview } from "@/app/actions";
+import { saveReview, type SaveReviewState } from "@/app/actions";
 import ReviewFields from "@/components/review-fields";
-import type { CatalogWork } from "@/modules/catalog/domain";
+import type { CatalogSource, CatalogWork } from "@/modules/catalog/domain";
 import { MEDIA_TYPE_LABELS } from "@/modules/catalog/domain";
 import Image from "next/image";
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
+
+interface ExistingWork {
+  source: CatalogSource;
+  sourceId: string;
+}
+
+const initialSaveState: SaveReviewState = { message: "" };
+
+function workKey(work: Pick<CatalogWork, "source" | "sourceId">): string {
+  return `${work.source}:${work.sourceId}`;
+}
 
 function SaveButton() {
   const { pending } = useFormStatus();
@@ -21,7 +32,35 @@ function SaveButton() {
   );
 }
 
-export default function SearchAndReview() {
+function ReviewForm({
+  selected,
+  defaultWatchedAt,
+}: {
+  selected: CatalogWork;
+  defaultWatchedAt: string;
+}) {
+  const [state, formAction] = useActionState(saveReview, initialSaveState);
+
+  return (
+    <form action={formAction} className="space-y-6">
+      <input type="hidden" name="source" value={selected.source} />
+      <input type="hidden" name="sourceId" value={selected.sourceId} />
+      <ReviewFields defaultWatchedAt={defaultWatchedAt} />
+      {state.message && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {state.message}
+        </p>
+      )}
+      <SaveButton />
+    </form>
+  );
+}
+
+export default function SearchAndReview({
+  existingWorks,
+}: {
+  existingWorks: ExistingWork[];
+}) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CatalogWork[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -35,6 +74,7 @@ export default function SearchAndReview() {
     const day = String(d.getDate()).padStart(2, "0");
     return `${d.getFullYear()}-${m}-${day}`;
   });
+  const existingKeys = new Set(existingWorks.map(workKey));
 
   async function runSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -86,12 +126,15 @@ export default function SearchAndReview() {
 
       {!selected && results.length > 0 && (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {results.map((r) => (
+          {results.map((r) => {
+            const alreadyAdded = existingKeys.has(workKey(r));
+            return (
             <li key={`${r.source}-${r.sourceId}`}>
               <button
                 type="button"
+                disabled={alreadyAdded}
                 onClick={() => setSelected(r)}
-                className="flex w-full gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 text-left transition hover:border-zinc-400 dark:hover:border-zinc-500"
+                className="flex w-full gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 text-left transition hover:border-zinc-400 dark:hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <div className="relative h-24 w-16 shrink-0 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
                   {r.coverUrl ? (
@@ -118,10 +161,16 @@ export default function SearchAndReview() {
                   <p className="mt-1 text-xs text-zinc-400">
                     来源：{r.source === "bangumi" ? "Bangumi" : "TMDB"}
                   </p>
+                  {alreadyAdded && (
+                    <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+                      已添加
+                    </p>
+                  )}
                 </div>
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 
@@ -165,12 +214,11 @@ export default function SearchAndReview() {
             </div>
           </div>
 
-          <form action={saveReview} className="space-y-6">
-            <input type="hidden" name="source" value={selected.source} />
-            <input type="hidden" name="sourceId" value={selected.sourceId} />
-            <ReviewFields defaultWatchedAt={today} />
-            <SaveButton />
-          </form>
+          <ReviewForm
+            key={workKey(selected)}
+            selected={selected}
+            defaultWatchedAt={today}
+          />
         </div>
       )}
     </div>

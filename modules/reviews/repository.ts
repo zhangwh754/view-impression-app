@@ -3,6 +3,7 @@ import "server-only";
 import { getDatabase } from "@/infrastructure/database/client";
 import type {
   CastMember,
+  CatalogSource,
   CatalogWork,
   MediaType,
 } from "@/modules/catalog/domain";
@@ -36,6 +37,16 @@ interface ReviewRow {
 interface SavedReviewRow {
   review_id: number;
   work_id: number;
+}
+
+interface CatalogReferenceRow {
+  source: CatalogSource;
+  source_id: string;
+}
+
+export interface CatalogReference {
+  source: CatalogSource;
+  sourceId: string;
 }
 
 function parseJsonArray<T>(raw: string | null): T[] {
@@ -86,7 +97,7 @@ const REVIEW_SELECT = `
 export async function saveReviewWithWork(
   work: CatalogWork,
   review: ReviewDraft,
-): Promise<SavedReviewRow> {
+): Promise<SavedReviewRow | null> {
   const sql = getDatabase();
   const rows = (await sql`
     WITH saved_work AS (
@@ -117,14 +128,45 @@ export async function saveReviewWithWork(
       SELECT id, ${review.status}, ${review.myRating}, ${review.comment},
              ${review.watchedAt}
       FROM saved_work
+      WHERE NOT EXISTS (
+        SELECT 1 FROM reviews WHERE reviews.work_id = saved_work.id
+      )
       RETURNING id, work_id
     )
     SELECT id AS review_id, work_id FROM saved_review
   `) as SavedReviewRow[];
 
-  const saved = rows[0];
-  if (!saved) throw new Error("Failed to save review");
-  return saved;
+  return rows[0] ?? null;
+}
+
+export async function hasReviewForCatalogWork(
+  source: CatalogSource,
+  sourceId: string,
+): Promise<boolean> {
+  const sql = getDatabase();
+  const rows = await sql`
+    SELECT 1
+    FROM reviews r
+    JOIN works w ON w.id = r.work_id
+    WHERE w.source = ${source} AND w.source_id = ${sourceId}
+    LIMIT 1
+  `;
+  return rows.length > 0;
+}
+
+export async function listReviewedCatalogReferences(): Promise<
+  CatalogReference[]
+> {
+  const sql = getDatabase();
+  const rows = (await sql`
+    SELECT DISTINCT w.source, w.source_id
+    FROM reviews r
+    JOIN works w ON w.id = r.work_id
+  `) as CatalogReferenceRow[];
+  return rows.map((row) => ({
+    source: row.source,
+    sourceId: row.source_id,
+  }));
 }
 
 export async function updateReviewRecord(

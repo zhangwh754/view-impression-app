@@ -6,6 +6,7 @@ import type { ReviewStatus } from "@/modules/reviews/domain";
 import {
   createReviewFromCatalog,
   deleteReview as deleteReviewUseCase,
+  DuplicateReviewError,
   updateReview as updateReviewUseCase,
 } from "@/modules/reviews/service";
 import { revalidatePath } from "next/cache";
@@ -42,7 +43,14 @@ function parseWatchedAt(raw: FormDataEntryValue | null): string | null {
 }
 
 /** Fetch full detail from the source, store the work, then attach the review. */
-export async function saveReview(formData: FormData) {
+export interface SaveReviewState {
+  message: string;
+}
+
+export async function saveReview(
+  _previousState: SaveReviewState,
+  formData: FormData,
+): Promise<SaveReviewState> {
   await requireOwner();
   const source = formData.get("source") as CatalogSource;
   const sourceId = String(formData.get("sourceId") ?? "");
@@ -50,16 +58,23 @@ export async function saveReview(formData: FormData) {
     throw new Error("Invalid work selection");
   }
 
-  await createReviewFromCatalog({
-    source,
-    sourceId,
-    review: {
-      status: parseStatus(formData.get("status")),
-      myRating: parseRating(formData.get("myRating")),
-      comment: parseText(formData.get("comment")),
-      watchedAt: parseWatchedAt(formData.get("watchedAt")),
-    },
-  });
+  try {
+    await createReviewFromCatalog({
+      source,
+      sourceId,
+      review: {
+        status: parseStatus(formData.get("status")),
+        myRating: parseRating(formData.get("myRating")),
+        comment: parseText(formData.get("comment")),
+        watchedAt: parseWatchedAt(formData.get("watchedAt")),
+      },
+    });
+  } catch (error) {
+    if (error instanceof DuplicateReviewError) {
+      return { message: "这部作品已经添加过了，请到详情页修改观后感。" };
+    }
+    throw error;
+  }
 
   revalidatePath("/");
   redirect("/");
