@@ -198,7 +198,11 @@ export async function deleteReviewRecord(reviewId: number): Promise<boolean> {
 export async function listReviewRecords(): Promise<ReviewWithWork[]> {
   const sql = getDatabase();
   const rows = (await sql.query(
-    `${REVIEW_SELECT} ORDER BY r.updated_at DESC`,
+    `${REVIEW_SELECT}
+     ORDER BY r.my_rating DESC NULLS LAST,
+              w.external_rating DESC NULLS LAST,
+              r.updated_at DESC,
+              r.id DESC`,
   )) as ReviewRow[];
   return rows.map(toReviewWithWork);
 }
