@@ -67,13 +67,8 @@ export default function SearchAndReview({
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [selected, setSelected] = useState<CatalogWork | null>(null);
-  // 新记录默认观看日期为今天（仅在挂载时计算一次，避免水合差异）
-  const [today] = useState(() => {
-    const d = new Date();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${d.getFullYear()}-${m}-${day}`;
-  });
+  // 新记录只默认当前年份，不预选月份。
+  const [currentYear] = useState(() => String(new Date().getFullYear()));
   const existingKeys = new Set(existingWorks.map(workKey));
 
   async function runSearch(e: React.FormEvent) {
@@ -217,7 +212,7 @@ export default function SearchAndReview({
           <ReviewForm
             key={workKey(selected)}
             selected={selected}
-            defaultWatchedAt={today}
+            defaultWatchedAt={currentYear}
           />
         </div>
       )}
