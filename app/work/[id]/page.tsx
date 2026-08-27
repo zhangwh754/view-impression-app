@@ -2,6 +2,7 @@ import { updateReview } from "@/app/actions";
 import { isOwner } from "@/auth";
 import DeleteReviewButton from "@/components/delete-review-button";
 import ReviewFields from "@/components/review-fields";
+import UpdateReviewButton from "@/components/update-review-button";
 import { MEDIA_TYPE_LABELS } from "@/modules/catalog/domain";
 import { REVIEW_STATUS_LABELS } from "@/modules/reviews/domain";
 import { getReviewByWorkId } from "@/modules/reviews/service";
@@ -156,14 +157,9 @@ export default async function WorkPage({
               defaultComment={review.comment}
               defaultWatchedAt={review.watchedAt}
             />
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                className="rounded-lg bg-zinc-900 dark:bg-zinc-100 px-5 py-2 text-sm font-medium text-white dark:text-zinc-900"
-              >
-                保存修改
-              </button>
-              <DeleteReviewButton reviewId={review.reviewId} />
+            <div className="flex flex-wrap items-start gap-3">
+              <UpdateReviewButton />
+              <DeleteReviewButton />
             </div>
           </form>
         ) : (

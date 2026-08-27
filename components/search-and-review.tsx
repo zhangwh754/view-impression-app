@@ -22,13 +22,20 @@ function workKey(work: Pick<CatalogWork, "source" | "sourceId">): string {
 function SaveButton() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded-lg bg-zinc-900 dark:bg-zinc-100 px-5 py-2 text-sm font-medium text-white dark:text-zinc-900 disabled:opacity-50"
-    >
-      {pending ? "保存中…" : "保存观后感"}
-    </button>
+    <div className="flex flex-wrap items-center gap-3">
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded-lg bg-zinc-900 dark:bg-zinc-100 px-5 py-2 text-sm font-medium text-white dark:text-zinc-900 disabled:cursor-wait disabled:opacity-50"
+      >
+        {pending ? "保存中…" : "保存观后感"}
+      </button>
+      {pending && (
+        <span role="status" className="text-sm text-zinc-500">
+          正在获取作品详情并保存，请稍候…
+        </span>
+      )}
+    </div>
   );
 }
 
