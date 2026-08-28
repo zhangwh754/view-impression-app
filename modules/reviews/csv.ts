@@ -1,11 +1,9 @@
 import type { ReviewWithWork } from "@/modules/reviews/domain";
 import { MEDIA_TYPE_LABELS } from "@/modules/catalog/domain";
-import { REVIEW_STATUS_LABELS } from "@/modules/reviews/domain";
 
 const CSV_HEADERS = [
   "作品",
   "类型",
-  "状态",
   "我的评分",
   "观看时间",
   "观后感",
@@ -25,7 +23,6 @@ export function reviewsToCsv(reviews: ReviewWithWork[]): string {
   const rows = reviews.map((review) => [
     review.work.title,
     MEDIA_TYPE_LABELS[review.work.type],
-    REVIEW_STATUS_LABELS[review.status],
     review.myRating,
     review.watchedAt,
     review.comment,

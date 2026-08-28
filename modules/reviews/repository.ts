@@ -10,13 +10,11 @@ import type {
 import type {
   ReviewDraft,
   ReviewSort,
-  ReviewStatus,
   ReviewWithWork,
 } from "@/modules/reviews/domain";
 
 interface ReviewRow {
   review_id: number;
-  status: ReviewStatus;
   my_rating: number | null;
   comment: string | null;
   watched_at: string | null;
@@ -63,7 +61,6 @@ function parseJsonArray<T>(raw: string | null): T[] {
 function toReviewWithWork(row: ReviewRow): ReviewWithWork {
   return {
     reviewId: row.review_id,
-    status: row.status,
     myRating: row.my_rating,
     comment: row.comment,
     watchedAt: row.watched_at ? String(row.watched_at) : null,
@@ -86,7 +83,7 @@ function toReviewWithWork(row: ReviewRow): ReviewWithWork {
 }
 
 const REVIEW_SELECT = `
-  SELECT r.id AS review_id, r.status, r.my_rating, r.comment, r.watched_at,
+  SELECT r.id AS review_id, r.my_rating, r.comment, r.watched_at,
          r.updated_at, w.id AS work_id, w.title, w.original_title, w.type,
          w.cover_url, w.creator, w.year, w.external_rating, w.episodes,
          w.synopsis, w.genres, w.cast_members
@@ -125,8 +122,8 @@ export async function saveReviewWithWork(
         cast_members = EXCLUDED.cast_members
       RETURNING id
     ), saved_review AS (
-      INSERT INTO reviews (work_id, status, my_rating, comment, watched_at)
-      SELECT id, ${review.status}, ${review.myRating}, ${review.comment},
+      INSERT INTO reviews (work_id, my_rating, comment, watched_at)
+      SELECT id, ${review.myRating}, ${review.comment},
              ${review.watchedAt}
       FROM saved_work
       WHERE NOT EXISTS (
@@ -177,8 +174,7 @@ export async function updateReviewRecord(
   const sql = getDatabase();
   const rows = await sql`
     UPDATE reviews
-    SET status = ${review.status},
-        my_rating = ${review.myRating},
+    SET my_rating = ${review.myRating},
         comment = ${review.comment},
         watched_at = ${review.watchedAt},
         updated_at = now()

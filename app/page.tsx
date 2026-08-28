@@ -10,7 +10,6 @@ import type {
   ReviewSort,
   ReviewWithWork,
 } from "@/modules/reviews/domain";
-import { REVIEW_STATUS_LABELS } from "@/modules/reviews/domain";
 import { listReviews } from "@/modules/reviews/service";
 import Image from "next/image";
 import Link from "next/link";
@@ -245,9 +244,6 @@ export default async function Home({
                         无封面
                       </div>
                     )}
-                    <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">
-                      {REVIEW_STATUS_LABELS[r.status]}
-                    </span>
                     {r.myRating !== null && (
                       <span className="absolute bottom-2 right-2 rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">
                         ★ {r.myRating}

@@ -4,7 +4,6 @@ import DeleteReviewButton from "@/components/delete-review-button";
 import ReviewFields from "@/components/review-fields";
 import UpdateReviewButton from "@/components/update-review-button";
 import { MEDIA_TYPE_LABELS } from "@/modules/catalog/domain";
-import { REVIEW_STATUS_LABELS } from "@/modules/reviews/domain";
 import { getReviewByWorkId } from "@/modules/reviews/service";
 import Image from "next/image";
 import Link from "next/link";
@@ -142,17 +141,17 @@ export default async function WorkPage({
       <section className="mt-10 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
         <h2 className="mb-6 text-lg font-semibold">
           我的观后感
-          <span className="ml-3 rounded-full bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-xs font-normal">
-            {REVIEW_STATUS_LABELS[review.status]}
-            {review.myRating !== null ? ` · ★ ${review.myRating}` : ""}
-          </span>
+          {review.myRating !== null && (
+            <span className="ml-3 rounded-full bg-zinc-100 px-3 py-1 text-xs font-normal dark:bg-zinc-800">
+              ★ {review.myRating}
+            </span>
+          )}
         </h2>
         {owner ? (
           <form action={updateReview} className="space-y-6">
             <input type="hidden" name="reviewId" value={review.reviewId} />
             <input type="hidden" name="workId" value={work.id} />
             <ReviewFields
-              defaultStatus={review.status}
               defaultRating={review.myRating}
               defaultComment={review.comment}
               defaultWatchedAt={review.watchedAt}

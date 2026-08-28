@@ -2,16 +2,7 @@ import type { CastMember, MediaType } from "@/modules/catalog/domain";
 
 export type ReviewSort = "rating" | "watched" | "updated" | "work-year";
 
-export type ReviewStatus = "plan" | "watching" | "completed";
-
-export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
-  plan: "想看",
-  watching: "在看",
-  completed: "看过",
-};
-
 export interface ReviewDraft {
-  status: ReviewStatus;
   myRating: number | null;
   comment: string | null;
   watchedAt: string | null;

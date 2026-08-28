@@ -2,7 +2,6 @@
 
 import { isOwner } from "@/auth";
 import type { CatalogSource } from "@/modules/catalog/domain";
-import type { ReviewStatus } from "@/modules/reviews/domain";
 import {
   createReviewFromCatalog,
   deleteReview as deleteReviewUseCase,
@@ -23,12 +22,6 @@ function parseRating(raw: FormDataEntryValue | null): number | null {
   const n = Number(raw);
   // 10 分制，仅整数
   return Number.isInteger(n) && n >= 1 && n <= 10 ? n : null;
-}
-
-function parseStatus(raw: FormDataEntryValue | null): ReviewStatus {
-  return raw === "plan" || raw === "watching" || raw === "completed"
-    ? raw
-    : "completed";
 }
 
 function parseText(raw: FormDataEntryValue | null): string | null {
@@ -63,7 +56,6 @@ export async function saveReview(
       source,
       sourceId,
       review: {
-        status: parseStatus(formData.get("status")),
         myRating: parseRating(formData.get("myRating")),
         comment: parseText(formData.get("comment")),
         watchedAt: parseWatchedAt(formData.get("watchedAt")),
@@ -89,7 +81,6 @@ export async function updateReview(formData: FormData) {
   }
 
   await updateReviewUseCase(reviewId, {
-    status: parseStatus(formData.get("status")),
     myRating: parseRating(formData.get("myRating")),
     comment: parseText(formData.get("comment")),
     watchedAt: parseWatchedAt(formData.get("watchedAt")),

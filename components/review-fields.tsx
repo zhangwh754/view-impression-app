@@ -1,6 +1,4 @@
 import WatchedDateField from "@/components/watched-date-field";
-import type { ReviewStatus } from "@/modules/reviews/domain";
-import { REVIEW_STATUS_LABELS } from "@/modules/reviews/domain";
 
 const inputClass =
   "w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400";
@@ -9,36 +7,16 @@ const pillClass =
   "inline-block rounded-full border border-zinc-300 dark:border-zinc-700 px-4 py-1.5 text-sm transition peer-checked:bg-zinc-900 peer-checked:text-white dark:peer-checked:bg-zinc-100 dark:peer-checked:text-zinc-900 peer-checked:border-transparent";
 
 export default function ReviewFields({
-  defaultStatus = "completed",
   defaultRating,
   defaultComment,
   defaultWatchedAt,
 }: {
-  defaultStatus?: ReviewStatus;
   defaultRating?: number | null;
   defaultComment?: string | null;
   defaultWatchedAt?: string | null;
 }) {
   return (
     <div className="space-y-4">
-      <div>
-        <span className="mb-2 block text-sm font-medium">状态</span>
-        <div className="flex gap-2">
-          {(Object.keys(REVIEW_STATUS_LABELS) as ReviewStatus[]).map((s) => (
-            <label key={s} className="cursor-pointer">
-              <input
-                type="radio"
-                name="status"
-                value={s}
-                defaultChecked={s === defaultStatus}
-                className="peer sr-only"
-              />
-              <span className={pillClass}>{REVIEW_STATUS_LABELS[s]}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
       <div>
         <span className="mb-2 block text-sm font-medium">我的评分</span>
         <div className="flex flex-wrap gap-2">
