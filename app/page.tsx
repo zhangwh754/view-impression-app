@@ -6,7 +6,10 @@ import FilterBar, {
 } from "@/components/filter-bar";
 import { isOwner as checkIsOwner } from "@/auth";
 import { MEDIA_TYPE_LABELS } from "@/modules/catalog/domain";
-import type { ReviewWithWork } from "@/modules/reviews/domain";
+import type {
+  ReviewSort,
+  ReviewWithWork,
+} from "@/modules/reviews/domain";
 import { REVIEW_STATUS_LABELS } from "@/modules/reviews/domain";
 import { listReviews } from "@/modules/reviews/service";
 import Image from "next/image";
@@ -50,6 +53,14 @@ function pick(param: string | string[] | undefined): string {
   return typeof param === "string" ? param : "";
 }
 
+function parseSort(param: string): ReviewSort {
+  return param === "watched" ||
+    param === "updated" ||
+    param === "work-year"
+    ? param
+    : "rating";
+}
+
 function parsePage(param: string): number {
   const page = Number(param);
   return Number.isSafeInteger(page) && page > 0 ? page : 1;
@@ -73,6 +84,7 @@ export default async function Home({
   const sp = await searchParams;
   const current: FilterState = {
     q: pick(sp.q).trim(),
+    sort: parseSort(pick(sp.sort)),
     type: pick(sp.type),
     genre: pick(sp.genre),
     rating: pick(sp.rating),
@@ -80,7 +92,7 @@ export default async function Home({
   };
   const requestedPage = parsePage(pick(sp.page));
 
-  const reviews = await listReviews();
+  const reviews = await listReviews(current.sort);
   const owner = await checkIsOwner();
 
   // 大类型先行过滤；小类型、年份的可选项都基于当前大类型下的数据
@@ -147,7 +159,7 @@ export default async function Home({
 
       {reviews.length > 0 && (
         <Form action="/" className="mb-4 flex flex-wrap gap-2">
-          {(["type", "genre", "rating", "year"] as const).map((key) =>
+          {(["sort", "type", "genre", "rating", "year"] as const).map((key) =>
             current[key] ? (
               <input
                 key={key}

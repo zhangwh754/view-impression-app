@@ -9,6 +9,7 @@ import type {
 } from "@/modules/catalog/domain";
 import type {
   ReviewDraft,
+  ReviewSort,
   ReviewStatus,
   ReviewWithWork,
 } from "@/modules/reviews/domain";
@@ -195,14 +196,36 @@ export async function deleteReviewRecord(reviewId: number): Promise<boolean> {
   return rows.length > 0;
 }
 
-export async function listReviewRecords(): Promise<ReviewWithWork[]> {
+function reviewOrderBy(sort: ReviewSort): string {
+  switch (sort) {
+    case "watched":
+      return `r.watched_at DESC NULLS LAST,
+              r.updated_at DESC,
+              r.id DESC`;
+    case "updated":
+      return `r.updated_at DESC,
+              r.id DESC`;
+    case "work-year":
+      return `w.year DESC NULLS LAST,
+              r.my_rating DESC NULLS LAST,
+              r.updated_at DESC,
+              r.id DESC`;
+    case "rating":
+    default:
+      return `r.my_rating DESC NULLS LAST,
+              w.external_rating DESC NULLS LAST,
+              r.updated_at DESC,
+              r.id DESC`;
+  }
+}
+
+export async function listReviewRecords(
+  sort: ReviewSort = "rating",
+): Promise<ReviewWithWork[]> {
   const sql = getDatabase();
   const rows = (await sql.query(
     `${REVIEW_SELECT}
-     ORDER BY r.my_rating DESC NULLS LAST,
-              w.external_rating DESC NULLS LAST,
-              r.updated_at DESC,
-              r.id DESC`,
+     ORDER BY ${reviewOrderBy(sort)}`,
   )) as ReviewRow[];
   return rows.map(toReviewWithWork);
 }

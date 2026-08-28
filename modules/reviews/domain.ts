@@ -1,5 +1,7 @@
 import type { CastMember, MediaType } from "@/modules/catalog/domain";
 
+export type ReviewSort = "rating" | "watched" | "updated" | "work-year";
+
 export type ReviewStatus = "plan" | "watching" | "completed";
 
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {

@@ -2,7 +2,11 @@ import "server-only";
 
 import { getCatalogWork } from "@/modules/catalog/service";
 import type { CatalogSource } from "@/modules/catalog/domain";
-import type { ReviewDraft, ReviewWithWork } from "@/modules/reviews/domain";
+import type {
+  ReviewDraft,
+  ReviewSort,
+  ReviewWithWork,
+} from "@/modules/reviews/domain";
 import {
   deleteReviewRecord,
   findLatestReviewByWorkId,
@@ -65,8 +69,10 @@ export async function deleteReview(reviewId: number): Promise<void> {
   }
 }
 
-export function listReviews(): Promise<ReviewWithWork[]> {
-  return listReviewRecords();
+export function listReviews(
+  sort: ReviewSort = "rating",
+): Promise<ReviewWithWork[]> {
+  return listReviewRecords(sort);
 }
 
 export function listReviewedWorks() {

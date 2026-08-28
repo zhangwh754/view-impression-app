@@ -1,9 +1,11 @@
 import type { MediaType } from "@/modules/catalog/domain";
 import { MEDIA_TYPE_LABELS } from "@/modules/catalog/domain";
+import type { ReviewSort } from "@/modules/reviews/domain";
 import Link from "next/link";
 
 export interface FilterState {
   q: string;
+  sort: ReviewSort;
   type: string;
   genre: string;
   rating: string;
@@ -16,6 +18,13 @@ export const RATING_FILTERS = [
   { key: "low", label: "1–6 分" },
   { key: "none", label: "未评分" },
 ] as const;
+
+const SORT_OPTIONS: Array<{ key: ReviewSort; label: string }> = [
+  { key: "rating", label: "评分最高" },
+  { key: "watched", label: "最近观看" },
+  { key: "updated", label: "最近更新" },
+  { key: "work-year", label: "作品年份" },
+];
 
 export function buildHref(
   current: FilterState,
@@ -86,6 +95,18 @@ export default function FilterBar({
 
   return (
     <div className="mb-8 space-y-3 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
+      <Row label="排序">
+        {SORT_OPTIONS.map((option) => (
+          <Pill
+            key={option.key}
+            active={current.sort === option.key}
+            href={buildHref(current, { sort: option.key })}
+          >
+            {option.label}
+          </Pill>
+        ))}
+      </Row>
+
       <Row label="大类型">
         <Pill active={!current.type} href={buildHref(current, { type: "", genre: "" })}>
           全部
@@ -152,7 +173,16 @@ export default function FilterBar({
 
       {hasAnyFilter && (
         <div className="pt-1">
-          <Link href="/" scroll={false} className="text-sm text-zinc-500 underline">
+          <Link
+            href={buildHref(current, {
+              type: "",
+              genre: "",
+              rating: "",
+              year: "",
+            })}
+            scroll={false}
+            className="text-sm text-zinc-500 underline"
+          >
             清除全部筛选
           </Link>
         </div>
