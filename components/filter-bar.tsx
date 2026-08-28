@@ -3,6 +3,7 @@ import { MEDIA_TYPE_LABELS } from "@/modules/catalog/domain";
 import Link from "next/link";
 
 export interface FilterState {
+  q: string;
   type: string;
   genre: string;
   rating: string;

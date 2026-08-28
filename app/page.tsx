@@ -1,6 +1,9 @@
 import AuthButton from "@/components/auth-button";
 import CardDeleteButton from "@/components/card-delete-button";
-import FilterBar, { type FilterState } from "@/components/filter-bar";
+import FilterBar, {
+  buildHref,
+  type FilterState,
+} from "@/components/filter-bar";
 import { isOwner as checkIsOwner } from "@/auth";
 import { MEDIA_TYPE_LABELS } from "@/modules/catalog/domain";
 import type { ReviewWithWork } from "@/modules/reviews/domain";
@@ -8,6 +11,7 @@ import { REVIEW_STATUS_LABELS } from "@/modules/reviews/domain";
 import { listReviews } from "@/modules/reviews/service";
 import Image from "next/image";
 import Link from "next/link";
+import Form from "next/form";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +31,19 @@ function matchRating(r: ReviewWithWork, bucket: string): boolean {
     default:
       return true;
   }
+}
+
+function matchKeyword(review: ReviewWithWork, keyword: string): boolean {
+  const normalizedKeyword = keyword.trim().toLocaleLowerCase("zh-CN");
+  if (!normalizedKeyword) return true;
+
+  return [
+    review.work.title,
+    review.work.originalTitle,
+    review.comment,
+  ].some((value) =>
+    value?.toLocaleLowerCase("zh-CN").includes(normalizedKeyword),
+  );
 }
 
 function pick(param: string | string[] | undefined): string {
@@ -55,6 +72,7 @@ export default async function Home({
 }) {
   const sp = await searchParams;
   const current: FilterState = {
+    q: pick(sp.q).trim(),
     type: pick(sp.type),
     genre: pick(sp.genre),
     rating: pick(sp.rating),
@@ -90,6 +108,7 @@ export default async function Home({
 
   const filtered = byType.filter(
     (r) =>
+      matchKeyword(r, current.q) &&
       (!current.genre || r.work.genres.includes(current.genre)) &&
       matchRating(r, current.rating) &&
       (!current.year || r.watchedAt?.startsWith(current.year)),
@@ -127,6 +146,47 @@ export default async function Home({
       </div>
 
       {reviews.length > 0 && (
+        <Form action="/" className="mb-4 flex flex-wrap gap-2">
+          {(["type", "genre", "rating", "year"] as const).map((key) =>
+            current[key] ? (
+              <input
+                key={key}
+                type="hidden"
+                name={key}
+                value={current[key]}
+              />
+            ) : null,
+          )}
+          <label htmlFor="library-search" className="sr-only">
+            搜索观后感记录
+          </label>
+          <input
+            id="library-search"
+            name="q"
+            type="search"
+            defaultValue={current.q}
+            placeholder="搜索作品名、原名或观后感…"
+            className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700"
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+          >
+            搜索
+          </button>
+          {current.q && (
+            <Link
+              href={buildHref(current, { q: "" })}
+              scroll={false}
+              className="self-center px-2 text-sm text-zinc-500 underline"
+            >
+              清除搜索
+            </Link>
+          )}
+        </Form>
+      )}
+
+      {reviews.length > 0 && (
         <FilterBar current={current} genres={genres} years={years} />
       )}
 
@@ -139,7 +199,9 @@ export default async function Home({
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 py-20 text-center text-zinc-500">
-          当前筛选条件下没有记录。
+          {current.q
+            ? `没有找到包含“${current.q}”的记录。`
+            : "当前筛选条件下没有记录。"}
         </div>
       ) : (
         <>
