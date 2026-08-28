@@ -108,12 +108,20 @@ export default async function Home({
         <div className="flex items-center gap-4">
           <AuthButton />
           {owner && (
-            <Link
-              href="/add"
-              className="rounded-lg bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-sm font-medium text-white dark:text-zinc-900"
-            >
-              + 添加
-            </Link>
+            <>
+              <a
+                href="/api/reviews/export"
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium transition hover:border-zinc-500 dark:border-zinc-700"
+              >
+                导出 CSV
+              </a>
+              <Link
+                href="/add"
+                className="rounded-lg bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-sm font-medium text-white dark:text-zinc-900"
+              >
+                + 添加
+              </Link>
+            </>
           )}
         </div>
       </div>
