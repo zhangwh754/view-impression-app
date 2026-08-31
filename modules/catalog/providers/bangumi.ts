@@ -8,6 +8,7 @@ import type {
 } from "@/modules/catalog/domain";
 
 const BGM_BASE = "https://api.bgm.tv";
+const SEARCH_RESULT_LIMIT = 16;
 
 // Bangumi 要求 User-Agent 使用 {developer_id}/{app_name}[/{version}] 格式。
 const HEADERS = {
@@ -92,15 +93,18 @@ function pickCreator(infobox?: BgmInfoboxEntry[]): string | null {
 }
 
 async function search(query: string): Promise<CatalogWork[]> {
-  const res = await fetch(`${BGM_BASE}/v0/search/subjects?limit=8`, {
-    method: "POST",
-    headers: HEADERS,
-    body: JSON.stringify({
-      keyword: query,
-      filter: { type: [2, 6] },
-    }),
-    next: { revalidate: 300 },
-  });
+  const res = await fetch(
+    `${BGM_BASE}/v0/search/subjects?limit=${SEARCH_RESULT_LIMIT}`,
+    {
+      method: "POST",
+      headers: HEADERS,
+      body: JSON.stringify({
+        keyword: query,
+        filter: { type: [2, 6] },
+      }),
+      next: { revalidate: 300 },
+    },
+  );
   if (!res.ok) throw new Error(`Bangumi search failed: ${res.status}`);
   const data = (await res.json()) as { data?: BgmSearchItem[] };
 

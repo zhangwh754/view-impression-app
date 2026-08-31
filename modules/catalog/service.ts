@@ -18,27 +18,20 @@ export interface CatalogSearchResult {
   errors: string[];
 }
 
-/** 并行搜索全部目录；单一提供方失败时保留其他结果。 */
-export async function searchCatalog(query: string): Promise<CatalogSearchResult> {
-  const settled = await Promise.allSettled(
-    providers.map((provider) => provider.search(query)),
-  );
+/** 仅搜索用户当前选择的目录，默认使用 Bangumi。 */
+export async function searchCatalog(
+  query: string,
+  source: CatalogSource = "bangumi",
+): Promise<CatalogSearchResult> {
+  const provider = providerBySource.get(source);
+  if (!provider) return { results: [], errors: ["不支持的搜索来源"] };
 
-  const results: CatalogWork[] = [];
-  const errors: string[] = [];
-
-  settled.forEach((result, index) => {
-    const provider = providers[index];
-    if (result.status === "fulfilled") {
-      results.push(...result.value);
-      return;
-    }
-
-    console.error(`${provider.displayName} catalog search failed`, result.reason);
-    errors.push(`${provider.displayName} 暂时不可用`);
-  });
-
-  return { results, errors };
+  try {
+    return { results: await provider.search(query), errors: [] };
+  } catch (error) {
+    console.error(`${provider.displayName} catalog search failed`, error);
+    return { results: [], errors: [`${provider.displayName} 暂时不可用`] };
+  }
 }
 
 export async function getCatalogWork(

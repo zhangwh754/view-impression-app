@@ -14,6 +14,10 @@ interface ExistingWork {
 }
 
 const initialSaveState: SaveReviewState = { message: "" };
+const SEARCH_SOURCE_LABELS: Record<CatalogSource, string> = {
+  bangumi: "Bangumi",
+  tmdb: "IMDb / TMDB",
+};
 
 function workKey(work: Pick<CatalogWork, "source" | "sourceId">): string {
   return `${work.source}:${work.sourceId}`;
@@ -69,6 +73,7 @@ export default function SearchAndReview({
   existingWorks: ExistingWork[];
 }) {
   const [query, setQuery] = useState("");
+  const [source, setSource] = useState<CatalogSource>("bangumi");
   const [results, setResults] = useState<CatalogWork[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,6 +83,15 @@ export default function SearchAndReview({
   const [currentYear] = useState(() => String(new Date().getFullYear()));
   const existingKeys = new Set(existingWorks.map(workKey));
 
+  function selectSource(nextSource: CatalogSource) {
+    if (nextSource === source) return;
+    setSource(nextSource);
+    setResults([]);
+    setErrors([]);
+    setSearched(false);
+    setSelected(null);
+  }
+
   async function runSearch(e: React.FormEvent) {
     e.preventDefault();
     const q = query.trim();
@@ -86,7 +100,8 @@ export default function SearchAndReview({
     setSearched(true);
     setSelected(null);
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const searchParams = new URLSearchParams({ q, source });
+      const res = await fetch(`/api/search?${searchParams}`);
       const data = await res.json();
       setResults(data.results ?? []);
       setErrors(data.errors ?? []);
@@ -100,25 +115,50 @@ export default function SearchAndReview({
 
   return (
     <div className="space-y-8">
-      <form onSubmit={runSearch} className="flex gap-2">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="输入电影 / 动漫 / 电视剧名称…"
-          className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-lg bg-zinc-900 dark:bg-zinc-100 px-5 py-2.5 text-sm font-medium text-white dark:text-zinc-900 disabled:opacity-50"
-        >
-          {loading ? "搜索中…" : "搜索"}
-        </button>
+      <form onSubmit={runSearch} className="space-y-3">
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            搜索来源
+          </legend>
+          <div className="inline-flex rounded-lg border border-zinc-300 p-1 dark:border-zinc-700">
+            {(["bangumi", "tmdb"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={source === option}
+                disabled={loading}
+                onClick={() => selectSource(option)}
+                className={`rounded-md px-4 py-1.5 text-sm font-medium transition disabled:cursor-wait disabled:opacity-50 ${
+                  source === option
+                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                    : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                }`}
+              >
+                {SEARCH_SOURCE_LABELS[option]}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <div className="flex gap-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="输入电影 / 动漫 / 电视剧名称…"
+            className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded-lg bg-zinc-900 dark:bg-zinc-100 px-5 py-2.5 text-sm font-medium text-white dark:text-zinc-900 disabled:opacity-50"
+          >
+            {loading ? "搜索中…" : "搜索"}
+          </button>
+        </div>
       </form>
 
       {errors.length > 0 && (
         <p className="text-sm text-amber-600">
-          部分数据源失败：{errors.join("；")}
+          搜索失败：{errors.join("；")}
         </p>
       )}
 
@@ -161,7 +201,7 @@ export default function SearchAndReview({
                     {r.externalRating ? ` · 评分 ${r.externalRating}` : ""}
                   </p>
                   <p className="mt-1 text-xs text-zinc-400">
-                    来源：{r.source === "bangumi" ? "Bangumi" : "TMDB"}
+                    来源：{SEARCH_SOURCE_LABELS[r.source]}
                   </p>
                   {alreadyAdded && (
                     <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400">

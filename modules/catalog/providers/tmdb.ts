@@ -5,6 +5,7 @@ import type { CatalogProvider, CatalogWork } from "@/modules/catalog/domain";
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const TMDB_IMAGE = "https://image.tmdb.org/t/p/w500";
+const SEARCH_RESULT_LIMIT = 16;
 
 // TMDB issues two credentials: a v3 API key (sent as ?api_key=) and a v4
 // Read Access Token (a JWT starting with "eyJ", sent as a Bearer header).
@@ -53,7 +54,7 @@ async function search(query: string): Promise<CatalogWork[]> {
     .filter((result) =>
       result.media_type === "movie" || result.media_type === "tv",
     )
-    .slice(0, 8)
+    .slice(0, SEARCH_RESULT_LIMIT)
     .map((result) => ({
       source: "tmdb" as const,
       sourceId: `${result.media_type}-${result.id}`,
