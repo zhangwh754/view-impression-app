@@ -39,11 +39,13 @@ interface SavedReviewRow {
 }
 
 interface CatalogReferenceRow {
+  work_id: number;
   source: CatalogSource;
   source_id: string;
 }
 
 export interface CatalogReference {
+  workId: number;
   source: CatalogSource;
   sourceId: string;
 }
@@ -157,11 +159,12 @@ export async function listReviewedCatalogReferences(): Promise<
 > {
   const sql = getDatabase();
   const rows = (await sql`
-    SELECT DISTINCT w.source, w.source_id
+    SELECT DISTINCT w.id AS work_id, w.source, w.source_id
     FROM reviews r
     JOIN works w ON w.id = r.work_id
   `) as CatalogReferenceRow[];
   return rows.map((row) => ({
+    workId: row.work_id,
     source: row.source,
     sourceId: row.source_id,
   }));

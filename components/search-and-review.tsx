@@ -5,10 +5,12 @@ import ReviewFields from "@/components/review-fields";
 import type { CatalogSource, CatalogWork } from "@/modules/catalog/domain";
 import { MEDIA_TYPE_LABELS } from "@/modules/catalog/domain";
 import Image from "next/image";
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 interface ExistingWork {
+  workId: number;
   source: CatalogSource;
   sourceId: string;
 }
@@ -81,7 +83,9 @@ export default function SearchAndReview({
   const [selected, setSelected] = useState<CatalogWork | null>(null);
   // 新记录只默认当前年份，不预选月份。
   const [currentYear] = useState(() => String(new Date().getFullYear()));
-  const existingKeys = new Set(existingWorks.map(workKey));
+  const existingWorkIds = new Map(
+    existingWorks.map((work) => [workKey(work), work.workId]),
+  );
 
   function selectSource(nextSource: CatalogSource) {
     if (nextSource === source) return;
@@ -169,15 +173,9 @@ export default function SearchAndReview({
       {!selected && results.length > 0 && (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {results.map((r) => {
-            const alreadyAdded = existingKeys.has(workKey(r));
-            return (
-            <li key={`${r.source}-${r.sourceId}`}>
-              <button
-                type="button"
-                disabled={alreadyAdded}
-                onClick={() => setSelected(r)}
-                className="flex w-full gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 text-left transition hover:border-zinc-400 dark:hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60"
-              >
+            const existingWorkId = existingWorkIds.get(workKey(r));
+            const content = (
+              <>
                 <div className="relative h-24 w-16 shrink-0 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
                   {r.coverUrl ? (
                     <Image
@@ -203,14 +201,34 @@ export default function SearchAndReview({
                   <p className="mt-1 text-xs text-zinc-400">
                     来源：{SEARCH_SOURCE_LABELS[r.source]}
                   </p>
-                  {alreadyAdded && (
+                  {existingWorkId !== undefined && (
                     <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400">
-                      已添加
+                      已添加 · 点击编辑
                     </p>
                   )}
                 </div>
-              </button>
-            </li>
+              </>
+            );
+
+            return (
+              <li key={`${r.source}-${r.sourceId}`}>
+                {existingWorkId !== undefined ? (
+                  <Link
+                    href={`/work/${existingWorkId}`}
+                    className="flex w-full gap-3 rounded-xl border border-zinc-200 p-3 text-left transition hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-500"
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSelected(r)}
+                    className="flex w-full gap-3 rounded-xl border border-zinc-200 p-3 text-left transition hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-500"
+                  >
+                    {content}
+                  </button>
+                )}
+              </li>
             );
           })}
         </ul>
