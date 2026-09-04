@@ -17,7 +17,7 @@ import Form from "next/form";
 
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 20;
 
 function matchRating(r: ReviewWithWork, bucket: string): boolean {
   const n = r.myRating;
@@ -269,7 +269,7 @@ export default async function Home({
           {totalPages > 1 && (
             <nav
               aria-label="首页分页"
-              className="mt-8 flex items-center justify-center gap-3"
+              className="mt-8 flex flex-wrap items-center justify-center gap-3"
             >
               {currentPage > 1 ? (
                 <Link
@@ -298,6 +298,39 @@ export default async function Home({
                   下一页
                 </span>
               )}
+              <Form action="/" className="flex items-center gap-2">
+                {(
+                  ["q", "sort", "type", "genre", "rating", "year"] as const
+                ).map((key) =>
+                  current[key] ? (
+                    <input
+                      key={key}
+                      type="hidden"
+                      name={key}
+                      value={current[key]}
+                    />
+                  ) : null,
+                )}
+                <label htmlFor="pagination-page" className="text-sm text-zinc-500">
+                  跳至
+                </label>
+                <input
+                  id="pagination-page"
+                  name="page"
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  defaultValue={currentPage}
+                  className="w-16 rounded-lg border border-zinc-300 bg-transparent px-2 py-2 text-center text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700"
+                />
+                <span className="text-sm text-zinc-500">页</span>
+                <button
+                  type="submit"
+                  className="rounded-lg border border-zinc-300 px-3 py-2 text-sm transition hover:border-zinc-500 dark:border-zinc-700"
+                >
+                  跳转
+                </button>
+              </Form>
             </nav>
           )}
         </>
