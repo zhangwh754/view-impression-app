@@ -52,6 +52,30 @@ CREATE TABLE public.reviews (
     ON DELETE CASCADE
 );
 
+CREATE TABLE public.showcase (
+  id smallint PRIMARY KEY DEFAULT 1,
+  title text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT showcase_singleton_check CHECK (id = 1)
+);
+
+CREATE TABLE public.showcase_slots (
+  id serial PRIMARY KEY,
+  showcase_id smallint NOT NULL DEFAULT 1,
+  label text NOT NULL,
+  work_id integer,
+  position integer NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT showcase_slots_showcase_id_fkey
+    FOREIGN KEY (showcase_id) REFERENCES public.showcase (id)
+    ON DELETE CASCADE,
+  CONSTRAINT showcase_slots_work_id_fkey
+    FOREIGN KEY (work_id) REFERENCES public.works (id)
+    ON DELETE SET NULL,
+  CONSTRAINT showcase_slots_position_unique UNIQUE (showcase_id, position)
+);
+
 CREATE TABLE public._prisma_migrations (
   id varchar(36) PRIMARY KEY,
   checksum varchar(64) NOT NULL,

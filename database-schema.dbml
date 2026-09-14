@@ -48,6 +48,26 @@ Table reviews {
   updated_at timestamptz [default: `now()`]
 }
 
+Table showcase {
+  id smallint [pk, not null, default: 1, note: 'Singleton row; must equal 1']
+  title text [not null]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table showcase_slots {
+  id integer [pk, increment, not null]
+  showcase_id smallint [not null, default: 1]
+  label text [not null]
+  work_id integer
+  position integer [not null]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (showcase_id, position) [unique, name: 'showcase_slots_position_unique']
+  }
+}
+
 Table _prisma_migrations {
   id varchar(36) [pk, not null]
   checksum varchar(64) [not null]
@@ -61,3 +81,5 @@ Table _prisma_migrations {
 
 Ref: "Post".authorId > "User".id [delete: set null, update: cascade]
 Ref: reviews.work_id > works.id [delete: cascade]
+Ref: showcase_slots.showcase_id > showcase.id [delete: cascade]
+Ref: showcase_slots.work_id > works.id [delete: set null]

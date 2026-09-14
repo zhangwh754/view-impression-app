@@ -1,5 +1,6 @@
 import AuthButton from "@/components/auth-button";
 import CardDeleteButton from "@/components/card-delete-button";
+import SiteTabs from "@/components/site-tabs";
 import FilterBar, {
   buildHref,
   type FilterState,
@@ -133,6 +134,7 @@ export default async function Home({
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-10">
+      <SiteTabs active="reviews" />
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">我的观后感</h1>
         <div className="flex items-center gap-4">
