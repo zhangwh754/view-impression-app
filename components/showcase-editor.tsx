@@ -370,6 +370,15 @@ export default function ShowcaseEditor({
       work: slot.work,
     })),
   );
+  const [savedTitle, setSavedTitle] = useState(initialShowcase.title);
+  const [savedSlots, setSavedSlots] = useState<DraftSlot[]>(() =>
+    initialShowcase.slots.map((slot) => ({
+      key: `saved-${slot.id}`,
+      label: slot.label,
+      work: slot.work,
+    })),
+  );
+  const [editing, setEditing] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<MediaType | "">("");
@@ -392,7 +401,9 @@ export default function ShowcaseEditor({
   const [isSaving, startSaving] = useTransition();
   const [isAddingCatalogWork, startAddingCatalogWork] = useTransition();
 
-  const shownSlots = owner ? slots : slots.filter((slot) => slot.work !== null);
+  const shownSlots = editing
+    ? slots
+    : slots.filter((slot) => slot.work !== null);
   const filledSlots = slots.filter((slot) => slot.work !== null);
   const selectedSlot = slots.find((slot) => slot.key === selectedKey) ?? null;
 
@@ -527,17 +538,40 @@ export default function ShowcaseEditor({
       return;
     }
 
+    const normalizedTitle = title.trim();
+    const normalizedSlots = slots.map((slot) => ({
+      ...slot,
+      label: slot.label.trim(),
+    }));
+
     startSaving(async () => {
       const result = await saveShowcaseAction({
-        title,
-        slots: slots.map((slot) => ({
+        title: normalizedTitle,
+        slots: normalizedSlots.map((slot) => ({
           label: slot.label,
           workId: slot.work?.id ?? null,
         })),
       });
       setFeedback(result);
-      if (result.ok) setDirty(false);
+      if (result.ok) {
+        setTitle(normalizedTitle);
+        setSlots(normalizedSlots);
+        setSavedTitle(normalizedTitle);
+        setSavedSlots(normalizedSlots.map((slot) => ({ ...slot })));
+        setDirty(false);
+        setEditing(false);
+        setSelectedKey(null);
+      }
     });
+  }
+
+  function cancelEditing() {
+    setTitle(savedTitle);
+    setSlots(savedSlots.map((slot) => ({ ...slot })));
+    setDirty(false);
+    setFeedback(null);
+    setSelectedKey(null);
+    setEditing(false);
   }
 
   async function downloadPng() {
@@ -574,7 +608,7 @@ export default function ShowcaseEditor({
       <section className="rounded-3xl bg-[#f3eee3] px-4 py-6 text-stone-900 sm:px-7 sm:py-8">
         <div className="mb-8 flex flex-col gap-5 border-y border-stone-400 py-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0 flex-1">
-            {owner ? (
+            {editing ? (
               <input
                 value={title}
                 maxLength={SHOWCASE_MAX_TITLE_LENGTH}
@@ -595,15 +629,37 @@ export default function ShowcaseEditor({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {owner && (
+            {owner && !editing && (
               <button
                 type="button"
-                onClick={save}
-                disabled={isSaving || !dirty}
-                className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-45"
+                onClick={() => {
+                  setEditing(true);
+                  setFeedback(null);
+                }}
+                className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white"
               >
-                {isSaving ? "保存中…" : dirty ? "保存更改" : "已保存"}
+                编辑榜单
               </button>
+            )}
+            {editing && (
+              <>
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  disabled={isSaving}
+                  className="rounded-lg border border-stone-400 bg-white/60 px-4 py-2 text-sm font-medium transition hover:bg-white disabled:opacity-45"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={isSaving || !dirty}
+                  className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {isSaving ? "保存中…" : dirty ? "保存更改" : "已保存"}
+                </button>
+              </>
             )}
             <button
               type="button"
@@ -635,7 +691,7 @@ export default function ShowcaseEditor({
               <ShowcaseCard
                 key={slot.key}
                 slot={slot}
-                owner={owner}
+                owner={editing}
                 index={index}
                 total={slots.length}
                 onPick={() => openPicker(slot.key)}
@@ -654,11 +710,11 @@ export default function ShowcaseEditor({
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-stone-400 py-20 text-center text-stone-500">
-            {owner ? "还没有分类，先添加一个吧。" : "还没有已填写的作品。"}
+            {editing ? "还没有分类，先添加一个吧。" : "还没有已填写的作品。"}
           </div>
         )}
 
-        {owner && (
+        {editing && (
           <button
             type="button"
             disabled={slots.length >= SHOWCASE_MAX_SLOTS}
@@ -685,7 +741,7 @@ export default function ShowcaseEditor({
 
       <ExportCanvas title={title} slots={slots} canvasRef={exportRef} />
 
-      {owner && selectedSlot && (
+      {editing && selectedSlot && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-6"
           onMouseDown={(event) => {
