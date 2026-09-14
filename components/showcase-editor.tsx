@@ -1,12 +1,21 @@
 "use client";
 
-import { saveShowcaseAction } from "@/app/showcase/actions";
-import { MEDIA_TYPE_LABELS, type MediaType } from "@/modules/catalog/domain";
+import {
+  addCatalogWorkToReviews,
+  saveShowcaseAction,
+} from "@/app/showcase/actions";
+import {
+  MEDIA_TYPE_LABELS,
+  type CatalogSource,
+  type CatalogWork,
+  type MediaType,
+} from "@/modules/catalog/domain";
 import {
   SHOWCASE_MAX_LABEL_LENGTH,
   SHOWCASE_MAX_SLOTS,
   SHOWCASE_MAX_TITLE_LENGTH,
   type Showcase,
+  type ShowcaseCatalogReference,
   type ShowcaseWorkOption,
   type ShowcaseWorkSummary,
 } from "@/modules/showcase/domain";
@@ -35,11 +44,22 @@ interface Feedback {
 const TRANSPARENT_PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mNk+M/wHwAF/gL+Avm7AAAAAElFTkSuQmCC";
 
+const SEARCH_SOURCE_LABELS: Record<CatalogSource, string> = {
+  bangumi: "Bangumi",
+  tmdb: "IMDb / TMDB",
+};
+
+function catalogWorkKey(
+  work: Pick<CatalogWork | ShowcaseCatalogReference, "source" | "sourceId">,
+): string {
+  return `${work.source}:${work.sourceId}`;
+}
+
 function PosterImage({
   work,
   sizes,
 }: {
-  work: ShowcaseWorkSummary;
+  work: Pick<ShowcaseWorkSummary, "title" | "coverUrl">;
   sizes: string;
 }) {
   const [failed, setFailed] = useState(false);
@@ -328,15 +348,21 @@ async function waitForImages(node: HTMLElement): Promise<void> {
 export default function ShowcaseEditor({
   initialShowcase,
   availableWorks,
+  existingCatalogWorks,
   owner,
 }: {
   initialShowcase: Showcase;
   availableWorks: ShowcaseWorkOption[];
+  existingCatalogWorks: ShowcaseCatalogReference[];
   owner: boolean;
 }) {
   const nextKey = useRef(0);
   const exportRef = useRef<HTMLDivElement>(null);
   const [title, setTitle] = useState(initialShowcase.title);
+  const [works, setWorks] = useState(availableWorks);
+  const [catalogReferences, setCatalogReferences] = useState(
+    existingCatalogWorks,
+  );
   const [slots, setSlots] = useState<DraftSlot[]>(() =>
     initialShowcase.slots.map((slot) => ({
       key: `saved-${slot.id}`,
@@ -347,10 +373,24 @@ export default function ShowcaseEditor({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<MediaType | "">("");
+  const [pickerMode, setPickerMode] = useState<"history" | "catalog">(
+    "history",
+  );
+  const [catalogSource, setCatalogSource] =
+    useState<CatalogSource>("bangumi");
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const [catalogResults, setCatalogResults] = useState<CatalogWork[]>([]);
+  const [catalogErrors, setCatalogErrors] = useState<string[]>([]);
+  const [catalogSearched, setCatalogSearched] = useState(false);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [selectedCatalogWork, setSelectedCatalogWork] =
+    useState<CatalogWork | null>(null);
+  const [catalogRating, setCatalogRating] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [exporting, setExporting] = useState(false);
   const [isSaving, startSaving] = useTransition();
+  const [isAddingCatalogWork, startAddingCatalogWork] = useTransition();
 
   const shownSlots = owner ? slots : slots.filter((slot) => slot.work !== null);
   const filledSlots = slots.filter((slot) => slot.work !== null);
@@ -358,7 +398,7 @@ export default function ShowcaseEditor({
 
   const filteredWorks = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase("zh-CN");
-    return availableWorks.filter((work) => {
+    return works.filter((work) => {
       const matchesType = !typeFilter || work.type === typeFilter;
       const matchesQuery =
         !normalizedQuery ||
@@ -368,7 +408,12 @@ export default function ShowcaseEditor({
           .includes(normalizedQuery);
       return matchesType && matchesQuery;
     });
-  }, [availableWorks, query, typeFilter]);
+  }, [works, query, typeFilter]);
+
+  const existingCatalogKeys = useMemo(
+    () => new Set(catalogReferences.map(catalogWorkKey)),
+    [catalogReferences],
+  );
 
   useEffect(() => {
     if (!selectedKey) return;
@@ -406,6 +451,69 @@ export default function ShowcaseEditor({
     setSelectedKey(key);
     setQuery("");
     setTypeFilter("");
+    setPickerMode("history");
+    setCatalogQuery("");
+    setCatalogResults([]);
+    setCatalogErrors([]);
+    setCatalogSearched(false);
+    setSelectedCatalogWork(null);
+    setCatalogRating(null);
+  }
+
+  async function runCatalogSearch(event: React.FormEvent) {
+    event.preventDefault();
+    const normalizedQuery = catalogQuery.trim();
+    if (!normalizedQuery) return;
+    setCatalogLoading(true);
+    setCatalogSearched(true);
+    setSelectedCatalogWork(null);
+    setCatalogRating(null);
+    try {
+      const searchParams = new URLSearchParams({
+        q: normalizedQuery,
+        source: catalogSource,
+      });
+      const response = await fetch(`/api/search?${searchParams}`);
+      const data = await response.json();
+      setCatalogResults(data.results ?? []);
+      setCatalogErrors(data.errors ?? []);
+    } catch {
+      setCatalogResults([]);
+      setCatalogErrors(["搜索请求失败，请稍后重试"]);
+    } finally {
+      setCatalogLoading(false);
+    }
+  }
+
+  function addSelectedCatalogWork() {
+    if (!selectedCatalogWork || catalogRating === null || !selectedSlot) return;
+    const slotKey = selectedSlot.key;
+    startAddingCatalogWork(async () => {
+      const result = await addCatalogWorkToReviews({
+        source: selectedCatalogWork.source,
+        sourceId: selectedCatalogWork.sourceId,
+        rating: catalogRating,
+      });
+      if (!result.ok || !result.work || !result.catalogReference) {
+        setCatalogErrors([result.message]);
+        return;
+      }
+
+      setWorks((current) =>
+        [result.work!, ...current].sort(
+          (left, right) =>
+            (right.myRating ?? -1) - (left.myRating ?? -1) ||
+            right.updatedAt.localeCompare(left.updatedAt),
+        ),
+      );
+      setCatalogReferences((current) => [
+        result.catalogReference!,
+        ...current,
+      ]);
+      changeSlot(slotKey, (current) => ({ ...current, work: result.work! }));
+      setFeedback({ ok: true, message: result.message });
+      setSelectedKey(null);
+    });
   }
 
   function save() {
@@ -609,98 +717,314 @@ export default function ShowcaseEditor({
               </button>
             </div>
 
-            <div className="flex flex-col gap-3 border-b border-zinc-200 p-4 dark:border-zinc-800 sm:flex-row">
-              <input
-                autoFocus
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="搜索作品名或原名…"
-                className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700"
-              />
-              <select
-                value={typeFilter}
-                onChange={(event) =>
-                  setTypeFilter(event.target.value as MediaType | "")
-                }
-                aria-label="按作品类型筛选"
-                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-950"
-              >
-                <option value="">全部类型</option>
-                {(Object.keys(MEDIA_TYPE_LABELS) as MediaType[]).map((type) => (
-                  <option key={type} value={type}>
-                    {MEDIA_TYPE_LABELS[type]}
-                  </option>
+            <div className="border-b border-zinc-200 px-4 pt-4 dark:border-zinc-800">
+              <div className="flex gap-5">
+                {(
+                  [
+                    ["history", "我的观影"],
+                    ["catalog", "搜索新作品"],
+                  ] as const
+                ).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    aria-pressed={pickerMode === mode}
+                    onClick={() => setPickerMode(mode)}
+                    className={`border-b-2 pb-3 text-sm font-medium ${
+                      pickerMode === mode
+                        ? "border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
+                        : "border-transparent text-zinc-500"
+                    }`}
+                  >
+                    {label}
+                  </button>
                 ))}
-              </select>
-              {selectedSlot.work && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    changeSlot(selectedSlot.key, (current) => ({
-                      ...current,
-                      work: null,
-                    }));
-                    setSelectedKey(null);
-                  }}
-                  className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
-                >
-                  清空当前作品
-                </button>
-              )}
+              </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <p className="mb-3 text-xs text-zinc-500">
-                {filteredWorks.length} 部作品 · 按个人评分和更新时间排序
-              </p>
-              {filteredWorks.length > 0 ? (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {filteredWorks.map((work) => (
+            {pickerMode === "history" ? (
+              <>
+                <div className="flex flex-col gap-3 border-b border-zinc-200 p-4 dark:border-zinc-800 sm:flex-row">
+                  <input
+                    autoFocus
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="搜索作品名或原名…"
+                    className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700"
+                  />
+                  <select
+                    value={typeFilter}
+                    onChange={(event) =>
+                      setTypeFilter(event.target.value as MediaType | "")
+                    }
+                    aria-label="按作品类型筛选"
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-950"
+                  >
+                    <option value="">全部类型</option>
+                    {(Object.keys(MEDIA_TYPE_LABELS) as MediaType[]).map(
+                      (type) => (
+                        <option key={type} value={type}>
+                          {MEDIA_TYPE_LABELS[type]}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                  {selectedSlot.work && (
                     <button
-                      key={work.id}
                       type="button"
                       onClick={() => {
                         changeSlot(selectedSlot.key, (current) => ({
                           ...current,
-                          work,
+                          work: null,
                         }));
                         setSelectedKey(null);
                       }}
-                      className={`flex items-center gap-3 rounded-xl border p-2 text-left transition hover:border-zinc-500 ${
-                        selectedSlot.work?.id === work.id
-                          ? "border-zinc-900 bg-zinc-50 dark:border-zinc-100 dark:bg-zinc-900"
-                          : "border-zinc-200 dark:border-zinc-800"
-                      }`}
+                      className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
                     >
-                      <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-md bg-zinc-100 dark:bg-zinc-800">
-                        <PosterImage
-                          key={`picker-${work.id}-${work.coverUrl ?? "none"}`}
-                          work={work}
-                          sizes="56px"
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 text-sm font-medium">
-                          {work.title}
-                        </p>
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {MEDIA_TYPE_LABELS[work.type]}
-                          {work.year ? ` · ${work.year}` : ""}
-                          {work.myRating !== null
-                            ? ` · ★ ${work.myRating}`
-                            : " · 未评分"}
-                        </p>
-                      </div>
+                      清空当前作品
                     </button>
-                  ))}
+                  )}
                 </div>
-              ) : (
-                <p className="py-16 text-center text-sm text-zinc-500">
-                  没有找到匹配的观影记录。
-                </p>
-              )}
-            </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                  <p className="mb-3 text-xs text-zinc-500">
+                    {filteredWorks.length} 部作品 · 按个人评分和更新时间排序
+                  </p>
+                  {filteredWorks.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {filteredWorks.map((work) => (
+                        <button
+                          key={work.id}
+                          type="button"
+                          onClick={() => {
+                            changeSlot(selectedSlot.key, (current) => ({
+                              ...current,
+                              work,
+                            }));
+                            setSelectedKey(null);
+                          }}
+                          className={`flex items-center gap-3 rounded-xl border p-2 text-left transition hover:border-zinc-500 ${
+                            selectedSlot.work?.id === work.id
+                              ? "border-zinc-900 bg-zinc-50 dark:border-zinc-100 dark:bg-zinc-900"
+                              : "border-zinc-200 dark:border-zinc-800"
+                          }`}
+                        >
+                          <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-md bg-zinc-100 dark:bg-zinc-800">
+                            <PosterImage
+                              key={`picker-${work.id}-${work.coverUrl ?? "none"}`}
+                              work={work}
+                              sizes="56px"
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="line-clamp-2 text-sm font-medium">
+                              {work.title}
+                            </p>
+                            <p className="mt-1 text-xs text-zinc-500">
+                              {MEDIA_TYPE_LABELS[work.type]}
+                              {work.year ? ` · ${work.year}` : ""}
+                              {work.myRating !== null
+                                ? ` · ★ ${work.myRating}`
+                                : " · 未评分"}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="py-16 text-center text-sm text-zinc-500">
+                      没有找到匹配的观影记录。
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <form
+                  onSubmit={runCatalogSearch}
+                  className="space-y-3 border-b border-zinc-200 p-4 dark:border-zinc-800"
+                >
+                  <div className="inline-flex rounded-lg border border-zinc-300 p-1 dark:border-zinc-700">
+                    {(["bangumi", "tmdb"] as const).map((source) => (
+                      <button
+                        key={source}
+                        type="button"
+                        aria-pressed={catalogSource === source}
+                        disabled={catalogLoading}
+                        onClick={() => {
+                          setCatalogSource(source);
+                          setCatalogResults([]);
+                          setCatalogErrors([]);
+                          setCatalogSearched(false);
+                          setSelectedCatalogWork(null);
+                          setCatalogRating(null);
+                        }}
+                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                          catalogSource === source
+                            ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                            : "text-zinc-500"
+                        }`}
+                      >
+                        {SEARCH_SOURCE_LABELS[source]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="search"
+                      value={catalogQuery}
+                      onChange={(event) => setCatalogQuery(event.target.value)}
+                      placeholder="从作品目录搜索…"
+                      className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700"
+                    />
+                    <button
+                      type="submit"
+                      disabled={catalogLoading || !catalogQuery.trim()}
+                      className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-45 dark:bg-zinc-100 dark:text-zinc-900"
+                    >
+                      {catalogLoading ? "搜索中…" : "搜索"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-500">
+                    选择新作品后必须评分；确认时会立即添加一条观后感。
+                  </p>
+                </form>
+
+                <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                  {catalogErrors.length > 0 && (
+                    <p role="alert" className="mb-4 text-sm text-red-600">
+                      {catalogErrors.join("；")}
+                    </p>
+                  )}
+
+                  {selectedCatalogWork ? (
+                    <div className="space-y-5">
+                      <div className="flex gap-4 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
+                        <div className="relative h-32 w-22 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                          <PosterImage
+                            key={`catalog-selected-${catalogWorkKey(selectedCatalogWork)}`}
+                            work={selectedCatalogWork}
+                            sizes="88px"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold">
+                            {selectedCatalogWork.title}
+                          </p>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {MEDIA_TYPE_LABELS[selectedCatalogWork.type]}
+                            {selectedCatalogWork.year
+                              ? ` · ${selectedCatalogWork.year}`
+                              : ""}
+                            {selectedCatalogWork.externalRating
+                              ? ` · 外部 ${selectedCatalogWork.externalRating}`
+                              : ""}
+                          </p>
+                          <button
+                            type="button"
+                            disabled={isAddingCatalogWork}
+                            onClick={() => {
+                              setSelectedCatalogWork(null);
+                              setCatalogRating(null);
+                              setCatalogErrors([]);
+                            }}
+                            className="mt-3 text-xs text-zinc-500 underline"
+                          >
+                            重新选择
+                          </button>
+                        </div>
+                      </div>
+
+                      <fieldset disabled={isAddingCatalogWork}>
+                        <legend className="mb-2 text-sm font-medium">
+                          我的评分（必填）
+                        </legend>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.from({ length: 10 }, (_, index) => index + 1).map(
+                            (rating) => (
+                              <button
+                                key={rating}
+                                type="button"
+                                aria-pressed={catalogRating === rating}
+                                onClick={() => setCatalogRating(rating)}
+                                className={`h-9 w-9 rounded-full border text-sm font-medium ${
+                                  catalogRating === rating
+                                    ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                                    : "border-zinc-300 dark:border-zinc-700"
+                                }`}
+                              >
+                                {rating}
+                              </button>
+                            ),
+                          )}
+                        </div>
+                      </fieldset>
+
+                      <button
+                        type="button"
+                        disabled={
+                          isAddingCatalogWork || catalogRating === null
+                        }
+                        onClick={addSelectedCatalogWork}
+                        className="rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-45 dark:bg-zinc-100 dark:text-zinc-900"
+                      >
+                        {isAddingCatalogWork
+                          ? "正在获取详情并添加…"
+                          : "添加到观后感并选入"}
+                      </button>
+                    </div>
+                  ) : catalogResults.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {catalogResults.map((work) => {
+                        const alreadyReviewed = existingCatalogKeys.has(
+                          catalogWorkKey(work),
+                        );
+                        return (
+                          <button
+                            key={catalogWorkKey(work)}
+                            type="button"
+                            disabled={alreadyReviewed}
+                            onClick={() => {
+                              setSelectedCatalogWork(work);
+                              setCatalogRating(null);
+                              setCatalogErrors([]);
+                            }}
+                            className="flex items-center gap-3 rounded-xl border border-zinc-200 p-2 text-left transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800"
+                          >
+                            <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-md bg-zinc-100 dark:bg-zinc-800">
+                              <PosterImage work={work} sizes="56px" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="line-clamp-2 text-sm font-medium">
+                                {work.title}
+                              </p>
+                              <p className="mt-1 text-xs text-zinc-500">
+                                {MEDIA_TYPE_LABELS[work.type]}
+                                {work.year ? ` · ${work.year}` : ""}
+                              </p>
+                              {alreadyReviewed && (
+                                <p className="mt-1 text-xs font-medium text-amber-600">
+                                  已在我的观影中
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : catalogSearched && !catalogLoading ? (
+                    <p className="py-16 text-center text-sm text-zinc-500">
+                      没有找到相关结果，换个关键词试试。
+                    </p>
+                  ) : (
+                    <p className="py-16 text-center text-sm text-zinc-500">
+                      输入名称，从 Bangumi 或 IMDb / TMDB 搜索新作品。
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
           </section>
         </div>
       )}

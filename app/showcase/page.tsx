@@ -3,7 +3,10 @@ import AuthButton from "@/components/auth-button";
 import ShowcaseEditor from "@/components/showcase-editor";
 import SiteTabs from "@/components/site-tabs";
 import type { ShowcaseWorkOption } from "@/modules/showcase/domain";
-import { listReviews } from "@/modules/reviews/service";
+import {
+  listReviewedWorks,
+  listReviews,
+} from "@/modules/reviews/service";
 import { getShowcase } from "@/modules/showcase/service";
 import type { Metadata } from "next";
 
@@ -17,9 +20,14 @@ export const metadata: Metadata = {
 export default async function ShowcasePage() {
   const [showcase, owner] = await Promise.all([getShowcase(), isOwner()]);
   let availableWorks: ShowcaseWorkOption[] = [];
+  let existingCatalogWorks: Awaited<ReturnType<typeof listReviewedWorks>> = [];
 
   if (owner) {
-    const reviews = await listReviews("rating");
+    const [reviews, reviewedWorks] = await Promise.all([
+      listReviews("rating"),
+      listReviewedWorks(),
+    ]);
+    existingCatalogWorks = reviewedWorks;
     availableWorks = reviews
       .map((review) => ({
         id: review.work.id,
@@ -48,6 +56,7 @@ export default async function ShowcasePage() {
       <ShowcaseEditor
         initialShowcase={showcase}
         availableWorks={availableWorks}
+        existingCatalogWorks={existingCatalogWorks}
         owner={owner}
       />
     </main>

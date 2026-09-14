@@ -1,4 +1,7 @@
-import type { MediaType } from "@/modules/catalog/domain";
+import type {
+  CatalogSource,
+  MediaType,
+} from "@/modules/catalog/domain";
 
 export const SHOWCASE_MAX_SLOTS = 40;
 export const SHOWCASE_MAX_TITLE_LENGTH = 60;
@@ -17,6 +20,12 @@ export interface ShowcaseWorkOption extends ShowcaseWorkSummary {
   myRating: number | null;
   updatedAt: string;
   genres: string[];
+}
+
+export interface ShowcaseCatalogReference {
+  workId: number;
+  source: CatalogSource;
+  sourceId: string;
 }
 
 export interface ShowcaseSlot {
