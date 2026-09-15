@@ -183,6 +183,7 @@ export default function SearchAndReview({
                       alt={r.title}
                       fill
                       sizes="64px"
+                      quality={70}
                       className="object-cover"
                     />
                   ) : (
@@ -244,6 +245,7 @@ export default function SearchAndReview({
                   alt={selected.title}
                   fill
                   sizes="112px"
+                  quality={70}
                   className="object-cover"
                 />
               ) : (

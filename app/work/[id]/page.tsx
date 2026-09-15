@@ -40,8 +40,9 @@ export default async function WorkPage({
               alt={work.title}
               fill
               sizes="224px"
+              quality={70}
               className="object-cover"
-              priority
+              preload
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-zinc-400">

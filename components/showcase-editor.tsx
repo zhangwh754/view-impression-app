@@ -78,6 +78,7 @@ function PosterImage({
       alt={work.title}
       fill
       sizes={sizes}
+      quality={70}
       loading="eager"
       className="object-cover"
       onError={() => setFailed(true)}

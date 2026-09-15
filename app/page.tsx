@@ -238,7 +238,8 @@ export default async function Home({
                         src={r.work.coverUrl}
                         alt={r.work.title}
                         fill
-                        sizes="(max-width: 640px) 50vw, 20vw"
+                        sizes="(max-width: 639px) 50vw, (max-width: 767px) 33vw, (max-width: 1023px) 25vw, 186px"
+                        quality={70}
                         className="object-cover"
                       />
                     ) : (
